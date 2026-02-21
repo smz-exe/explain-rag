@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -70,8 +71,19 @@ export function QueryInput({ onSubmit, isLoading = false }: QueryInputProps) {
           <Label htmlFor="reranking">Enable Reranking</Label>
         </div>
 
-        <Button type="submit" disabled={isLoading || !question.trim()}>
-          {isLoading ? "Querying..." : "Ask"}
+        <Button
+          type="submit"
+          disabled={isLoading || !question.trim()}
+          className="w-full sm:w-auto"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Querying...
+            </>
+          ) : (
+            "Ask"
+          )}
         </Button>
       </div>
     </form>

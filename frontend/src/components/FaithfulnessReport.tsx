@@ -100,9 +100,15 @@ export function FaithfulnessReport({ faithfulness }: FaithfulnessReportProps) {
                   <Icon className={`h-4 w-4 ${config.color}`} />
                   <AlertDescription>
                     <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium">{claim.claim}</p>
-                        <Badge className={config.badge}>{claim.verdict}</Badge>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <p className="flex-1 text-sm font-medium">
+                          {claim.claim}
+                        </p>
+                        <Badge
+                          className={`${config.badge} shrink-0 self-start`}
+                        >
+                          {claim.verdict}
+                        </Badge>
                       </div>
                       <p className="text-muted-foreground text-sm">
                         {claim.reasoning}

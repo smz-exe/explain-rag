@@ -7,9 +7,13 @@ import {
   ChunksPanel,
   FaithfulnessReport,
   TimingTrace,
+  ErrorDisplay,
+  AnswerSkeleton,
+  ChunksSkeleton,
+  FaithfulnessSkeleton,
+  TimingSkeleton,
 } from "@/components";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 
 // Generated types from orval
 import type { QueryResponse } from "@/api/model";
@@ -71,36 +75,34 @@ export default function Home() {
         </div>
 
         {queryMutation.isError && (
-          <Card className="border-destructive mb-8">
-            <CardContent className="pt-6">
-              <p className="text-destructive">
-                Error:{" "}
-                {queryMutation.error instanceof Error
-                  ? queryMutation.error.message
-                  : "An error occurred"}
-              </p>
-            </CardContent>
-          </Card>
+          <div className="mb-8">
+            <ErrorDisplay
+              error={
+                queryMutation.error instanceof Error
+                  ? queryMutation.error
+                  : new Error("An unexpected error occurred")
+              }
+              onRetry={() => queryMutation.reset()}
+            />
+          </div>
         )}
 
         {queryMutation.isPending && (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-24" />
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </CardContent>
-            </Card>
+          <div className="grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+            <div className="space-y-4 md:col-span-1 md:space-y-6 lg:col-span-2">
+              <AnswerSkeleton />
+              <ChunksSkeleton />
+            </div>
+            <div className="space-y-4 md:space-y-6">
+              <FaithfulnessSkeleton />
+              <TimingSkeleton />
+            </div>
           </div>
         )}
 
         {response && !queryMutation.isPending && (
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
+          <div className="grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+            <div className="space-y-4 md:col-span-1 md:space-y-6 lg:col-span-2">
               <AnswerDisplay
                 question={response.question}
                 answer={response.answer}
@@ -112,7 +114,7 @@ export default function Home() {
                 highlightedChunkId={highlightedChunkId}
               />
             </div>
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               <FaithfulnessReport faithfulness={response.faithfulness} />
               <TimingTrace trace={response.trace} />
             </div>
