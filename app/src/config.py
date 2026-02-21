@@ -25,8 +25,17 @@ class Settings(BaseSettings):
     chunk_overlap: int = 200
     default_top_k: int = 10
     chroma_persist_dir: str = "./data/chroma"
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    # Model Loading Configuration
+    preload_models: bool = True  # Preload models at startup to avoid cold start
+    hf_offline_mode: bool = False  # Use only locally cached HuggingFace models
 
     # Server Configuration
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8501"]
+
+    # Streamlit Configuration
+    streamlit_port: int = 8501
+    fastapi_url: str = "http://localhost:8000"

@@ -22,21 +22,23 @@ Answer:
 Output only the JSON array, no other text:"""
 
 
-VERIFY_PROMPT = """You are a faithfulness evaluator. Determine if the following claim is supported by the provided context chunks.
+VERIFY_PROMPT = """You are a faithfulness evaluator. Determine if each claim is supported by the provided context chunks.
 
-Claim: {claim}
+Claims to verify:
+{claims}
 
 Context chunks:
 {chunks}
 
-Evaluate the claim and respond with a JSON object:
+For EACH claim, evaluate whether it is supported by the chunks. Respond with a JSON array where each element has:
 {{
+    "claim_index": <0-based index of the claim>,
     "verdict": "supported" or "unsupported" or "partial",
-    "evidence_chunk_indices": [list of chunk numbers that support/refute the claim],
+    "evidence_chunk_indices": [list of 1-based chunk numbers that support/refute the claim],
     "reasoning": "brief explanation of your verdict"
 }}
 
-Output only the JSON object, no other text:"""
+Output only the JSON array, no other text:"""
 
 
 class LangChainFaithfulness(FaithfulnessPort):
@@ -77,7 +79,7 @@ class LangChainFaithfulness(FaithfulnessPort):
         answer: str,
         chunks: list[Chunk],
     ) -> FaithfulnessResult:
-        """Verify faithfulness by decomposing answer and checking each claim."""
+        """Verify faithfulness by decomposing answer and checking all claims in batch."""
         try:
             # Step 1: Decompose answer into claims
             logger.debug("Decomposing answer into claims...")
@@ -87,12 +89,9 @@ class LangChainFaithfulness(FaithfulnessPort):
                 # No claims to verify
                 return FaithfulnessResult(score=1.0, claims=[])
 
-            # Step 2: Verify each claim
-            logger.debug(f"Verifying {len(claims)} claims...")
-            claim_results = []
-            for claim in claims:
-                verification = await self._verify_claim(claim, chunks)
-                claim_results.append(verification)
+            # Step 2: Verify all claims in a single batch call
+            logger.debug(f"Verifying {len(claims)} claims in batch...")
+            claim_results = await self._verify_claims_batch(claims, chunks)
 
             # Step 3: Calculate overall score
             score = self._calculate_score(claim_results)
@@ -126,41 +125,64 @@ class LangChainFaithfulness(FaithfulnessPort):
             # Fallback: split by sentences
             return [s.strip() for s in re.split(r"(?<=[.!?])\s+", answer) if s.strip()]
 
-    async def _verify_claim(self, claim: str, chunks: list[Chunk]) -> ClaimVerification:
-        """Verify a single claim against the chunks."""
+    async def _verify_claims_batch(
+        self, claims: list[str], chunks: list[Chunk]
+    ) -> list[ClaimVerification]:
+        """Verify all claims in a single LLM call (batched)."""
+        # Format claims with indices
+        claims_text = "\n".join(f"[{i}] {claim}" for i, claim in enumerate(claims))
         chunks_text = self._format_chunks(chunks)
-        prompt = VERIFY_PROMPT.format(claim=claim, chunks=chunks_text)
+        prompt = VERIFY_PROMPT.format(claims=claims_text, chunks=chunks_text)
 
         response = await asyncio.to_thread(self.llm.invoke, [HumanMessage(content=prompt)])
 
-        # Parse JSON response
+        # Parse JSON array response
         try:
             content = response.content.strip()
             if content.startswith("```"):
                 content = re.sub(r"^```(?:json)?\n?", "", content)
                 content = re.sub(r"\n?```$", "", content)
-            result = json.loads(content)
+            results = json.loads(content)
 
-            # Map chunk indices to IDs
-            evidence_ids = []
-            for idx in result.get("evidence_chunk_indices", []):
-                if isinstance(idx, int) and 1 <= idx <= len(chunks):
-                    evidence_ids.append(chunks[idx - 1].id)
+            if not isinstance(results, list):
+                results = [results]
 
-            return ClaimVerification(
-                claim=claim,
-                verdict=result.get("verdict", "unsupported"),
-                evidence_chunk_ids=evidence_ids,
-                reasoning=result.get("reasoning", ""),
-            )
+            # Build ClaimVerification objects, indexed by claim_index
+            verifications = []
+            results_by_index = {r.get("claim_index", i): r for i, r in enumerate(results)}
+
+            for i, claim in enumerate(claims):
+                result = results_by_index.get(i, {})
+
+                # Map chunk indices to IDs
+                evidence_ids = []
+                for idx in result.get("evidence_chunk_indices", []):
+                    if isinstance(idx, int) and 1 <= idx <= len(chunks):
+                        evidence_ids.append(chunks[idx - 1].id)
+
+                verifications.append(
+                    ClaimVerification(
+                        claim=claim,
+                        verdict=result.get("verdict", "unsupported"),
+                        evidence_chunk_ids=evidence_ids,
+                        reasoning=result.get("reasoning", ""),
+                    )
+                )
+
+            return verifications
+
         except json.JSONDecodeError:
-            logger.warning(f"Failed to parse verification JSON: {response.content}")
-            return ClaimVerification(
-                claim=claim,
-                verdict="unsupported",
-                evidence_chunk_ids=[],
-                reasoning="Failed to parse verification response",
-            )
+            logger.warning(f"Failed to parse batch verification JSON: {response.content}")
+            # Fallback: mark all as unsupported
+            return [
+                ClaimVerification(
+                    claim=claim,
+                    verdict="unsupported",
+                    evidence_chunk_ids=[],
+                    reasoning="Failed to parse verification response",
+                )
+                for claim in claims
+            ]
 
     def _format_chunks(self, chunks: list[Chunk]) -> str:
         """Format chunks with numbers for the prompt."""

@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.adapters.inbound.http import health, ingest, papers, query
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
 from src.adapters.outbound.chroma_store import ChromaVectorStore
+from src.adapters.outbound.cross_encoder_reranker import CrossEncoderReranker
 from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
 from src.adapters.outbound.langchain_rag import LangChainRAG
 from src.adapters.outbound.st_embedding import SentenceTransformerEmbedding
@@ -27,7 +28,10 @@ def create_app() -> FastAPI:
 
     # Initialize outbound adapters
     logger.info(f"Initializing embedding adapter: {settings.embedding_model}")
-    embedding = SentenceTransformerEmbedding(model_name=settings.embedding_model)
+    embedding = SentenceTransformerEmbedding(
+        model_name=settings.embedding_model,
+        local_files_only=settings.hf_offline_mode,
+    )
 
     logger.info(f"Initializing vector store: {settings.chroma_persist_dir}")
     vector_store = ChromaVectorStore(persist_dir=settings.chroma_persist_dir)
@@ -49,6 +53,19 @@ def create_app() -> FastAPI:
         api_key=settings.anthropic_api_key,
     )
 
+    logger.info(f"Initializing reranker: {settings.reranker_model}")
+    reranker = CrossEncoderReranker(
+        model_name=settings.reranker_model,
+        local_files_only=settings.hf_offline_mode,
+    )
+
+    # Preload models at startup to avoid cold start on first query
+    if settings.preload_models:
+        logger.info("Preloading models...")
+        embedding.preload()
+        reranker.preload()
+        logger.info("Models preloaded successfully")
+
     # Initialize application services
     ingestion_service = IngestionService(
         paper_source=paper_source,
@@ -63,6 +80,7 @@ def create_app() -> FastAPI:
         vector_store=vector_store,
         llm=llm,
         faithfulness=faithfulness,
+        reranker=reranker,
         default_top_k=settings.default_top_k,
     )
 
