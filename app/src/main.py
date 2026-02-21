@@ -1,7 +1,9 @@
 import logging
+import traceback
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from src.adapters.inbound.http import health, ingest, papers, query
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
@@ -9,6 +11,7 @@ from src.adapters.outbound.chroma_store import ChromaVectorStore
 from src.adapters.outbound.cross_encoder_reranker import CrossEncoderReranker
 from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
 from src.adapters.outbound.langchain_rag import LangChainRAG
+from src.adapters.outbound.sqlite_query_storage import SQLiteQueryStorage
 from src.adapters.outbound.st_embedding import SentenceTransformerEmbedding
 from src.application.ingestion_service import IngestionService
 from src.application.query_service import QueryService
@@ -59,6 +62,9 @@ def create_app() -> FastAPI:
         local_files_only=settings.hf_offline_mode,
     )
 
+    logger.info(f"Initializing query storage: {settings.sqlite_db_path}")
+    query_storage = SQLiteQueryStorage(db_path=settings.sqlite_db_path)
+
     # Preload models at startup to avoid cold start on first query
     if settings.preload_models:
         logger.info("Preloading models...")
@@ -81,6 +87,7 @@ def create_app() -> FastAPI:
         llm=llm,
         faithfulness=faithfulness,
         reranker=reranker,
+        query_storage=query_storage,
         default_top_k=settings.default_top_k,
     )
 
@@ -99,6 +106,24 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Global exception handler for unhandled errors
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        """Handle unhandled exceptions with a structured error response."""
+        logger.error(
+            f"Unhandled exception: {exc}\n"
+            f"Path: {request.url.path}\n"
+            f"Traceback: {traceback.format_exc()}"
+        )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "internal_error",
+                "message": str(exc),
+                "path": request.url.path,
+            },
+        )
 
     # Mount routers
     app.include_router(ingest.create_router(ingestion_service))

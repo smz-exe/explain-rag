@@ -2,8 +2,15 @@ import asyncio
 import logging
 import re
 
+import anthropic
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from src.domain.entities.chunk import Chunk
 from src.domain.entities.query import Citation, GenerationResult
@@ -70,6 +77,22 @@ class LangChainRAG(LLMPort):
             )
         return self._llm
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(
+            (
+                anthropic.RateLimitError,
+                anthropic.APIConnectionError,
+                anthropic.APITimeoutError,
+            )
+        ),
+        reraise=True,
+    )
+    def _invoke_with_retry(self, messages):
+        """Invoke LLM with retry logic for transient errors."""
+        return self.llm.invoke(messages)
+
     async def generate(
         self,
         question: str,
@@ -94,9 +117,9 @@ class LangChainRAG(LLMPort):
         ]
 
         try:
-            # Run LLM in thread to avoid blocking
+            # Run LLM in thread to avoid blocking (with retry for transient errors)
             logger.debug(f"Generating answer for: {question[:50]}...")
-            response = await asyncio.to_thread(self.llm.invoke, messages)
+            response = await asyncio.to_thread(self._invoke_with_retry, messages)
             raw_answer = response.content
 
             # Check for insufficient context response

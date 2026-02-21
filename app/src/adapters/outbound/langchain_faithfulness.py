@@ -3,8 +3,15 @@ import json
 import logging
 import re
 
+import anthropic
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from src.domain.entities.chunk import Chunk
 from src.domain.entities.explanation import ClaimVerification, FaithfulnessResult
@@ -74,6 +81,22 @@ class LangChainFaithfulness(FaithfulnessPort):
             )
         return self._llm
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(
+            (
+                anthropic.RateLimitError,
+                anthropic.APIConnectionError,
+                anthropic.APITimeoutError,
+            )
+        ),
+        reraise=True,
+    )
+    def _invoke_with_retry(self, messages):
+        """Invoke LLM with retry logic for transient errors."""
+        return self.llm.invoke(messages)
+
     async def verify(
         self,
         answer: str,
@@ -109,7 +132,9 @@ class LangChainFaithfulness(FaithfulnessPort):
         """Decompose answer into individual claims."""
         prompt = DECOMPOSE_PROMPT.format(answer=answer)
 
-        response = await asyncio.to_thread(self.llm.invoke, [HumanMessage(content=prompt)])
+        response = await asyncio.to_thread(
+            self._invoke_with_retry, [HumanMessage(content=prompt)]
+        )
 
         # Parse JSON response
         try:
@@ -134,7 +159,9 @@ class LangChainFaithfulness(FaithfulnessPort):
         chunks_text = self._format_chunks(chunks)
         prompt = VERIFY_PROMPT.format(claims=claims_text, chunks=chunks_text)
 
-        response = await asyncio.to_thread(self.llm.invoke, [HumanMessage(content=prompt)])
+        response = await asyncio.to_thread(
+            self._invoke_with_retry, [HumanMessage(content=prompt)]
+        )
 
         # Parse JSON array response
         try:

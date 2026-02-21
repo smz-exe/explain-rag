@@ -1,14 +1,23 @@
 import asyncio
+import logging
 import tempfile
 import uuid
 from pathlib import Path
 
 import arxiv
 import fitz  # PyMuPDF
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from src.domain.entities.chunk import Chunk
 from src.domain.entities.paper import Paper
 from src.domain.ports.paper_source import PaperNotFoundError, PaperSourcePort, PDFParsingError
+
+logger = logging.getLogger(__name__)
 
 
 class ArxivPaperSource(PaperSourcePort):
@@ -18,14 +27,43 @@ class ArxivPaperSource(PaperSourcePort):
         """Initialize the arXiv client."""
         self._client = arxiv.Client()
 
+    @staticmethod
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+        reraise=True,
+    )
+    def _fetch_arxiv_results(client, search):
+        """Fetch arXiv results with retry logic for network errors."""
+        return list(client.results(search))
+
+    @staticmethod
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+        reraise=True,
+    )
+    def _download_pdf(result, dirpath, filename):
+        """Download PDF with retry logic for network errors."""
+        return result.download_pdf(dirpath=dirpath, filename=filename)
+
     async def fetch_by_id(self, arxiv_id: str) -> Paper:
         """Fetch paper metadata by arXiv ID."""
         # Normalize arXiv ID (remove version suffix if present)
         clean_id = arxiv_id.split("v")[0]
+        logger.debug(f"Fetching paper metadata for: {arxiv_id}")
 
         search = arxiv.Search(id_list=[clean_id])
 
-        results = await asyncio.to_thread(list, self._client.results(search))
+        try:
+            results = await asyncio.to_thread(
+                self._fetch_arxiv_results, self._client, search
+            )
+        except Exception as e:
+            logger.error(f"Failed to fetch paper {arxiv_id}: {e}")
+            raise PaperNotFoundError(f"Failed to fetch paper {arxiv_id}: {e}") from e
 
         if not results:
             raise PaperNotFoundError(f"Paper not found: {arxiv_id}")
@@ -44,13 +82,20 @@ class ArxivPaperSource(PaperSourcePort):
 
     async def search(self, query: str, max_results: int = 5) -> list[Paper]:
         """Search for papers by keyword."""
+        logger.debug(f"Searching arXiv for: {query}")
         search = arxiv.Search(
             query=query,
             max_results=max_results,
             sort_by=arxiv.SortCriterion.Relevance,
         )
 
-        results = await asyncio.to_thread(list, self._client.results(search))
+        try:
+            results = await asyncio.to_thread(
+                self._fetch_arxiv_results, self._client, search
+            )
+        except Exception as e:
+            logger.error(f"arXiv search failed for '{query}': {e}")
+            raise
 
         papers = []
         for result in results:
@@ -71,20 +116,39 @@ class ArxivPaperSource(PaperSourcePort):
         self, paper: Paper, chunk_size: int, chunk_overlap: int
     ) -> list[Chunk]:
         """Download PDF, parse text, and split into chunks."""
+        logger.debug(f"Extracting chunks from paper: {paper.arxiv_id}")
+
         # Download PDF to temp file
         with tempfile.TemporaryDirectory() as temp_dir:
             pdf_path = Path(temp_dir) / f"{paper.arxiv_id}.pdf"
 
-            # Download the PDF
+            # Download the PDF with retry
             search = arxiv.Search(id_list=[paper.arxiv_id.split("v")[0]])
-            results = await asyncio.to_thread(list, self._client.results(search))
+            try:
+                results = await asyncio.to_thread(
+                    self._fetch_arxiv_results, self._client, search
+                )
+            except Exception as e:
+                logger.error(f"Failed to fetch paper for download: {paper.arxiv_id}: {e}")
+                raise PDFParsingError(
+                    f"Could not download PDF for {paper.arxiv_id}: {e}"
+                ) from e
 
             if not results:
                 raise PDFParsingError(f"Could not download PDF for {paper.arxiv_id}")
 
-            await asyncio.to_thread(
-                results[0].download_pdf, dirpath=temp_dir, filename=f"{paper.arxiv_id}.pdf"
-            )
+            try:
+                await asyncio.to_thread(
+                    self._download_pdf,
+                    results[0],
+                    temp_dir,
+                    f"{paper.arxiv_id}.pdf",
+                )
+            except Exception as e:
+                logger.error(f"PDF download failed for {paper.arxiv_id}: {e}")
+                raise PDFParsingError(
+                    f"Failed to download PDF for {paper.arxiv_id}: {e}"
+                ) from e
 
             # Parse PDF and extract text
             text = await self._extract_text_from_pdf(pdf_path)
@@ -101,12 +165,26 @@ class ArxivPaperSource(PaperSourcePort):
         """Extract text from a PDF file using PyMuPDF."""
 
         def extract():
-            doc = fitz.open(pdf_path)
-            text_parts = []
-            for page in doc:
-                text_parts.append(page.get_text())
-            doc.close()
-            return "\n".join(text_parts)
+            doc = None
+            try:
+                doc = fitz.open(pdf_path)
+                text_parts = []
+                for page_num, page in enumerate(doc):
+                    try:
+                        text_parts.append(page.get_text())
+                    except Exception as e:
+                        # Log but continue with other pages
+                        logger.warning(
+                            f"Failed to extract text from page {page_num}: {e}"
+                        )
+                return "\n".join(text_parts)
+            except Exception as e:
+                raise PDFParsingError(
+                    f"Failed to open or parse PDF {pdf_path}: {e}"
+                ) from e
+            finally:
+                if doc:
+                    doc.close()
 
         return await asyncio.to_thread(extract)
 
