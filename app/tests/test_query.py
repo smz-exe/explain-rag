@@ -9,13 +9,13 @@ async def test_query_endpoint_no_chunks(client):
     """Test query endpoint returns insufficient context when no papers ingested."""
     response = await client.post(
         "/query",
-        json={"question": "What is attention?"},
+        json={"question": "What is hexagonal architecture?"},
     )
     assert response.status_code == 200
 
     data = response.json()
     assert "query_id" in data
-    assert data["question"] == "What is attention?"
+    assert data["question"] == "What is hexagonal architecture?"
     assert "cannot answer" in data["answer"].lower() or len(data["retrieved_chunks"]) == 0
 
 
