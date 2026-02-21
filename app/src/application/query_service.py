@@ -11,6 +11,7 @@ from src.domain.entities.query import (
 from src.domain.ports.embedding import EmbeddingPort
 from src.domain.ports.faithfulness import FaithfulnessPort
 from src.domain.ports.llm import InsufficientContextError, LLMPort
+from src.domain.ports.reranker import RerankerPort
 from src.domain.ports.vector_store import VectorStorePort
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ class QueryService:
         vector_store: VectorStorePort,
         llm: LLMPort,
         faithfulness: FaithfulnessPort,
+        reranker: RerankerPort | None = None,
         default_top_k: int = 10,
     ):
         """Initialize the query service.
@@ -42,12 +44,14 @@ class QueryService:
             vector_store: Adapter for vector search.
             llm: Adapter for answer generation.
             faithfulness: Adapter for faithfulness verification.
+            reranker: Optional adapter for cross-encoder reranking.
             default_top_k: Default number of chunks to retrieve.
         """
         self._embedding = embedding
         self._vector_store = vector_store
         self._llm = llm
         self._faithfulness = faithfulness
+        self._reranker = reranker
         self._default_top_k = default_top_k
 
         # In-memory query storage for GET /query/{id}/explanation
@@ -108,7 +112,34 @@ class QueryService:
                 retrieval_time=retrieval_time,
             )
 
-        # Step 3: Prepare chunks and build RetrievedChunk objects
+        # Step 3: Optional reranking
+        reranking_time: float | None = None
+        rerank_scores: dict[str, float] = {}
+
+        if request.enable_reranking and self._reranker is not None:
+            logger.debug("Step 3: Reranking chunks")
+            rerank_start = time.perf_counter()
+
+            # Extract chunks from search results for reranking
+            chunks_to_rerank = [chunk for chunk, _ in search_results]
+            reranked = await self._reranker.rerank(
+                query=request.question,
+                chunks=chunks_to_rerank,
+                top_k=top_k,
+            )
+
+            # Build rerank scores map and update search_results order
+            rerank_scores = {chunk.id: score for chunk, score in reranked}
+            # Preserve original similarity scores while using reranked order
+            original_scores = {chunk.id: score for chunk, score in search_results}
+            search_results = [
+                (chunk, original_scores[chunk.id]) for chunk, _ in reranked
+            ]
+
+            reranking_time = (time.perf_counter() - rerank_start) * 1000
+            logger.debug(f"Reranking completed in {reranking_time:.1f}ms")
+
+        # Step 4: Prepare chunks and build RetrievedChunk objects
         chunks = []
         retrieved_chunks = []
         for rank, (chunk, score) in enumerate(search_results, start=1):
@@ -120,7 +151,7 @@ class QueryService:
                     paper_title=chunk.metadata.get("paper_title", ""),
                     content=chunk.content,
                     similarity_score=score,
-                    rerank_score=None,  # TODO: implement reranking
+                    rerank_score=rerank_scores.get(chunk.id),
                     rank=rank,
                 )
             )
@@ -163,7 +194,7 @@ class QueryService:
         trace = ExplanationTrace(
             embedding_time_ms=embed_time,
             retrieval_time_ms=retrieval_time,
-            reranking_time_ms=None,  # TODO: implement reranking
+            reranking_time_ms=reranking_time,
             generation_time_ms=gen_time,
             faithfulness_time_ms=faith_time,
             total_time_ms=total_time,
