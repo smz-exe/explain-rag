@@ -1,0 +1,185 @@
+import asyncio
+import json
+import logging
+import re
+
+from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import HumanMessage
+
+from src.domain.entities.chunk import Chunk
+from src.domain.entities.explanation import ClaimVerification, FaithfulnessResult
+from src.domain.ports.faithfulness import FaithfulnessPort, FaithfulnessVerificationError
+
+logger = logging.getLogger(__name__)
+
+
+DECOMPOSE_PROMPT = """Decompose the following answer into individual factual claims.
+Return a JSON array of strings, each being one distinct claim.
+
+Answer:
+{answer}
+
+Output only the JSON array, no other text:"""
+
+
+VERIFY_PROMPT = """You are a faithfulness evaluator. Determine if the following claim is supported by the provided context chunks.
+
+Claim: {claim}
+
+Context chunks:
+{chunks}
+
+Evaluate the claim and respond with a JSON object:
+{{
+    "verdict": "supported" or "unsupported" or "partial",
+    "evidence_chunk_indices": [list of chunk numbers that support/refute the claim],
+    "reasoning": "brief explanation of your verdict"
+}}
+
+Output only the JSON object, no other text:"""
+
+
+class LangChainFaithfulness(FaithfulnessPort):
+    """Faithfulness verification adapter using LangChain."""
+
+    def __init__(
+        self,
+        model: str = "claude-sonnet-4-20250514",
+        api_key: str = "",
+        max_tokens: int = 2048,
+    ):
+        """Initialize the faithfulness adapter.
+
+        Args:
+            model: Anthropic model name.
+            api_key: Anthropic API key.
+            max_tokens: Maximum tokens in response.
+        """
+        self._model = model
+        self._api_key = api_key
+        self._max_tokens = max_tokens
+        self._llm: ChatAnthropic | None = None
+
+    @property
+    def llm(self) -> ChatAnthropic:
+        """Lazy-load the LLM client."""
+        if self._llm is None:
+            self._llm = ChatAnthropic(
+                model=self._model,
+                api_key=self._api_key,
+                max_tokens=self._max_tokens,
+                temperature=0.0,  # Deterministic for evaluation
+            )
+        return self._llm
+
+    async def verify(
+        self,
+        answer: str,
+        chunks: list[Chunk],
+    ) -> FaithfulnessResult:
+        """Verify faithfulness by decomposing answer and checking each claim."""
+        try:
+            # Step 1: Decompose answer into claims
+            logger.debug("Decomposing answer into claims...")
+            claims = await self._decompose_answer(answer)
+
+            if not claims:
+                # No claims to verify
+                return FaithfulnessResult(score=1.0, claims=[])
+
+            # Step 2: Verify each claim
+            logger.debug(f"Verifying {len(claims)} claims...")
+            claim_results = []
+            for claim in claims:
+                verification = await self._verify_claim(claim, chunks)
+                claim_results.append(verification)
+
+            # Step 3: Calculate overall score
+            score = self._calculate_score(claim_results)
+
+            return FaithfulnessResult(
+                score=score,
+                claims=claim_results,
+            )
+
+        except Exception as e:
+            logger.error(f"Faithfulness verification failed: {e}")
+            raise FaithfulnessVerificationError(f"Failed to verify faithfulness: {e}") from e
+
+    async def _decompose_answer(self, answer: str) -> list[str]:
+        """Decompose answer into individual claims."""
+        prompt = DECOMPOSE_PROMPT.format(answer=answer)
+
+        response = await asyncio.to_thread(self.llm.invoke, [HumanMessage(content=prompt)])
+
+        # Parse JSON response
+        try:
+            content = response.content.strip()
+            # Handle potential markdown code blocks
+            if content.startswith("```"):
+                content = re.sub(r"^```(?:json)?\n?", "", content)
+                content = re.sub(r"\n?```$", "", content)
+            claims = json.loads(content)
+            return claims if isinstance(claims, list) else []
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse claims JSON: {response.content}")
+            # Fallback: split by sentences
+            return [s.strip() for s in re.split(r"(?<=[.!?])\s+", answer) if s.strip()]
+
+    async def _verify_claim(self, claim: str, chunks: list[Chunk]) -> ClaimVerification:
+        """Verify a single claim against the chunks."""
+        chunks_text = self._format_chunks(chunks)
+        prompt = VERIFY_PROMPT.format(claim=claim, chunks=chunks_text)
+
+        response = await asyncio.to_thread(self.llm.invoke, [HumanMessage(content=prompt)])
+
+        # Parse JSON response
+        try:
+            content = response.content.strip()
+            if content.startswith("```"):
+                content = re.sub(r"^```(?:json)?\n?", "", content)
+                content = re.sub(r"\n?```$", "", content)
+            result = json.loads(content)
+
+            # Map chunk indices to IDs
+            evidence_ids = []
+            for idx in result.get("evidence_chunk_indices", []):
+                if isinstance(idx, int) and 1 <= idx <= len(chunks):
+                    evidence_ids.append(chunks[idx - 1].id)
+
+            return ClaimVerification(
+                claim=claim,
+                verdict=result.get("verdict", "unsupported"),
+                evidence_chunk_ids=evidence_ids,
+                reasoning=result.get("reasoning", ""),
+            )
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse verification JSON: {response.content}")
+            return ClaimVerification(
+                claim=claim,
+                verdict="unsupported",
+                evidence_chunk_ids=[],
+                reasoning="Failed to parse verification response",
+            )
+
+    def _format_chunks(self, chunks: list[Chunk]) -> str:
+        """Format chunks with numbers for the prompt."""
+        formatted = []
+        for i, chunk in enumerate(chunks, start=1):
+            formatted.append(f"Chunk [{i}]:\n{chunk.content}\n")
+        return "\n".join(formatted)
+
+    def _calculate_score(self, results: list[ClaimVerification]) -> float:
+        """Calculate overall faithfulness score."""
+        if not results:
+            return 1.0
+
+        # Score: supported=1.0, partial=0.5, unsupported=0.0
+        verdict_scores = {
+            "supported": 1.0,
+            "partial": 0.5,
+            "unsupported": 0.0,
+        }
+
+        total = sum(verdict_scores.get(r.verdict, 0.0) for r in results)
+        return total / len(results)
