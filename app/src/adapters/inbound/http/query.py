@@ -1,7 +1,25 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
-from src.application.query_service import QueryNotFoundError, QueryService
+from src.application.query_service import QueryService
 from src.domain.entities.query import QueryRequest, QueryResponse
+from src.domain.ports.query_storage import QueryNotFoundError
+
+
+class QuerySummary(BaseModel):
+    """Summary of a stored query."""
+
+    query_id: str
+    question: str
+    answer_preview: str
+    created_at: str
+
+
+class QueriesResponse(BaseModel):
+    """Response model for listing recent queries."""
+
+    queries: list[QuerySummary]
+    total: int
 
 
 def create_router(query_service: QueryService) -> APIRouter:
@@ -47,5 +65,28 @@ def create_router(query_service: QueryService) -> APIRouter:
                 status_code=404,
                 detail=f"Query not found: {query_id}",
             ) from None
+
+    @router.get("/list", response_model=QueriesResponse)
+    async def list_queries(
+        limit: int = Query(default=20, ge=1, le=100, description="Max number of queries to return")
+    ) -> QueriesResponse:
+        """List recent queries with summary information.
+
+        Returns:
+            List of query summaries with id, question, answer preview, and timestamp.
+        """
+        queries = await query_service.list_recent_queries(limit=limit)
+        return QueriesResponse(
+            queries=[
+                QuerySummary(
+                    query_id=q["query_id"],
+                    question=q["question"],
+                    answer_preview=q["answer_preview"],
+                    created_at=q["created_at"],
+                )
+                for q in queries
+            ],
+            total=len(queries),
+        )
 
     return router
