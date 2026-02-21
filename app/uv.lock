@@ -524,6 +524,7 @@ dependencies = [
     { name = "pymupdf" },
     { name = "python-dotenv" },
     { name = "sentence-transformers" },
+    { name = "streamlit" },
     { name = "tenacity" },
     { name = "uvicorn" },
 ]
@@ -538,9 +539,6 @@ dev = [
 openai = [
     { name = "langchain-openai" },
     { name = "openai" },
-]
-streamlit = [
-    { name = "streamlit" },
 ]
 
 [package.metadata]
@@ -564,11 +562,11 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
     { name = "sentence-transformers", specifier = ">=3.0.0" },
-    { name = "streamlit", marker = "extra == 'streamlit'", specifier = ">=1.38.0" },
+    { name = "streamlit", specifier = ">=1.38.0" },
     { name = "tenacity", specifier = ">=8.0.0" },
     { name = "uvicorn", specifier = ">=0.41.0" },
 ]
-provides-extras = ["dev", "streamlit", "openai"]
+provides-extras = ["dev", "openai"]
 
 [[package]]
 name = "fastapi"
