@@ -90,6 +90,23 @@ class APIClient:
                 for p in data.get("papers", [])
             ]
 
+    def delete_paper(self, paper_id: str) -> dict[str, Any]:
+        """Delete a paper and all its chunks.
+
+        Args:
+            paper_id: The paper ID to delete.
+
+        Returns:
+            Dictionary with paper_id and deleted_chunks count.
+
+        Raises:
+            httpx.HTTPError: If the request fails or paper not found (404).
+        """
+        with self._get_client() as client:
+            response = client.delete(f"/papers/{paper_id}")
+            response.raise_for_status()
+            return response.json()
+
     def ingest_papers(self, arxiv_ids: list[str]) -> IngestionResult:
         """Ingest papers by arXiv IDs.
 

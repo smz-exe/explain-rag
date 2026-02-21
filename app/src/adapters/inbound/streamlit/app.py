@@ -71,6 +71,31 @@ def render_sidebar():
                 with st.sidebar.expander(f"{paper.title[:40]}...", expanded=False):
                     st.caption(f"arXiv: {paper.arxiv_id}")
                     st.caption(f"Chunks: {paper.chunk_count}")
+
+                    # Delete button with confirmation
+                    delete_key = f"delete_{paper.paper_id}"
+                    confirm_key = f"confirm_{paper.paper_id}"
+
+                    if st.session_state.get(confirm_key, False):
+                        st.warning("Are you sure?")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("Yes", key=f"yes_{paper.paper_id}"):
+                                try:
+                                    result = client.delete_paper(paper.paper_id)
+                                    st.success(f"Deleted {result.get('deleted_chunks', 0)} chunks")
+                                    st.session_state[confirm_key] = False
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+                        with col2:
+                            if st.button("No", key=f"no_{paper.paper_id}"):
+                                st.session_state[confirm_key] = False
+                                st.rerun()
+                    else:
+                        if st.button("Delete", key=delete_key, type="secondary"):
+                            st.session_state[confirm_key] = True
+                            st.rerun()
         else:
             st.sidebar.info("No papers ingested yet")
     except Exception as e:
