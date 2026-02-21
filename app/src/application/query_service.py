@@ -11,18 +11,11 @@ from src.domain.entities.query import (
 from src.domain.ports.embedding import EmbeddingPort
 from src.domain.ports.faithfulness import FaithfulnessPort
 from src.domain.ports.llm import InsufficientContextError, LLMPort
+from src.domain.ports.query_storage import QueryNotFoundError, QueryStoragePort
 from src.domain.ports.reranker import RerankerPort
 from src.domain.ports.vector_store import VectorStorePort
 
 logger = logging.getLogger(__name__)
-
-
-class QueryNotFoundError(Exception):
-    """Raised when a query ID is not found in storage."""
-
-    def __init__(self, query_id: str):
-        self.query_id = query_id
-        super().__init__(f"Query not found: {query_id}")
 
 
 class QueryService:
@@ -35,6 +28,7 @@ class QueryService:
         llm: LLMPort,
         faithfulness: FaithfulnessPort,
         reranker: RerankerPort | None = None,
+        query_storage: QueryStoragePort | None = None,
         default_top_k: int = 10,
     ):
         """Initialize the query service.
@@ -45,6 +39,7 @@ class QueryService:
             llm: Adapter for answer generation.
             faithfulness: Adapter for faithfulness verification.
             reranker: Optional adapter for cross-encoder reranking.
+            query_storage: Adapter for persistent query storage.
             default_top_k: Default number of chunks to retrieve.
         """
         self._embedding = embedding
@@ -52,10 +47,8 @@ class QueryService:
         self._llm = llm
         self._faithfulness = faithfulness
         self._reranker = reranker
+        self._query_storage = query_storage
         self._default_top_k = default_top_k
-
-        # In-memory query storage for GET /query/{id}/explanation
-        self._query_store: dict[str, QueryResponse] = {}
 
     async def query(self, request: QueryRequest) -> QueryResponse:
         """Execute the full query pipeline.
@@ -105,7 +98,7 @@ class QueryService:
         # Check if we have results
         if not search_results:
             logger.warning(f"No chunks found for query: {request.question}")
-            return self._build_insufficient_context_response(
+            return await self._build_insufficient_context_response(
                 query_id=query_id,
                 question=request.question,
                 embed_time=embed_time,
@@ -169,7 +162,7 @@ class QueryService:
         except InsufficientContextError as e:
             logger.warning(f"Insufficient context: {e}")
             gen_time = (time.perf_counter() - gen_start) * 1000
-            return self._build_insufficient_context_response(
+            return await self._build_insufficient_context_response(
                 query_id=query_id,
                 question=request.question,
                 embed_time=embed_time,
@@ -212,7 +205,8 @@ class QueryService:
         )
 
         # Store for later retrieval
-        self._query_store[query_id] = response
+        if self._query_storage:
+            await self._query_storage.store(response)
 
         logger.info(f"Query {query_id} completed in {total_time:.1f}ms")
 
@@ -230,11 +224,28 @@ class QueryService:
         Raises:
             QueryNotFoundError: If query ID not found.
         """
-        if query_id not in self._query_store:
-            raise QueryNotFoundError(query_id=query_id)
-        return self._query_store[query_id]
+        if self._query_storage is None:
+            raise QueryNotFoundError(query_id)
 
-    def _build_insufficient_context_response(
+        response = await self._query_storage.get(query_id)
+        if response is None:
+            raise QueryNotFoundError(query_id)
+        return response
+
+    async def list_recent_queries(self, limit: int = 20) -> list[dict]:
+        """List recent queries with summary information.
+
+        Args:
+            limit: Maximum number of queries to return.
+
+        Returns:
+            List of query summaries.
+        """
+        if self._query_storage is None:
+            return []
+        return await self._query_storage.list_recent(limit)
+
+    async def _build_insufficient_context_response(
         self,
         query_id: str,
         question: str,
@@ -264,5 +275,6 @@ class QueryService:
             trace=trace,
         )
 
-        self._query_store[query_id] = response
+        if self._query_storage:
+            await self._query_storage.store(response)
         return response

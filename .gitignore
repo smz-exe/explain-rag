@@ -30,7 +30,7 @@ ENV/
 .env.local
 
 # Data
-app/data/chroma/
+app/data/
 
 # IDE
 .vscode/

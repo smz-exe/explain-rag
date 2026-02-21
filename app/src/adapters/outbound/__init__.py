@@ -3,6 +3,7 @@ from .chroma_store import ChromaVectorStore
 from .cross_encoder_reranker import CrossEncoderReranker
 from .langchain_faithfulness import LangChainFaithfulness
 from .langchain_rag import LangChainRAG
+from .sqlite_query_storage import SQLiteQueryStorage
 from .st_embedding import SentenceTransformerEmbedding
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "SentenceTransformerEmbedding",
     "LangChainRAG",
     "LangChainFaithfulness",
+    "SQLiteQueryStorage",
 ]

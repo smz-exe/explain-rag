@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     chroma_persist_dir: str = "./data/chroma"
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
+    # Storage Configuration
+    sqlite_db_path: str = "./data/queries.db"
+
     # Model Loading Configuration
     preload_models: bool = True  # Preload models at startup to avoid cold start
     hf_offline_mode: bool = False  # Use only locally cached HuggingFace models
