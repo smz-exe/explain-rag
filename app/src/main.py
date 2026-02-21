@@ -3,11 +3,14 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.adapters.inbound.http import health, ingest, papers
+from src.adapters.inbound.http import health, ingest, papers, query
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
 from src.adapters.outbound.chroma_store import ChromaVectorStore
+from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
+from src.adapters.outbound.langchain_rag import LangChainRAG
 from src.adapters.outbound.st_embedding import SentenceTransformerEmbedding
 from src.application.ingestion_service import IngestionService
+from src.application.query_service import QueryService
 from src.config import Settings
 
 # Configure logging
@@ -32,6 +35,20 @@ def create_app() -> FastAPI:
     logger.info("Initializing arXiv paper source")
     paper_source = ArxivPaperSource()
 
+    # Initialize LLM adapters
+    logger.info(f"Initializing LLM adapter: {settings.claude_model}")
+    llm = LangChainRAG(
+        model=settings.claude_model,
+        api_key=settings.anthropic_api_key,
+        max_tokens=settings.claude_max_tokens,
+    )
+
+    logger.info("Initializing faithfulness adapter")
+    faithfulness = LangChainFaithfulness(
+        model=settings.claude_model,
+        api_key=settings.anthropic_api_key,
+    )
+
     # Initialize application services
     ingestion_service = IngestionService(
         paper_source=paper_source,
@@ -39,6 +56,14 @@ def create_app() -> FastAPI:
         vector_store=vector_store,
         chunk_size=settings.chunk_size,
         chunk_overlap=settings.chunk_overlap,
+    )
+
+    query_service = QueryService(
+        embedding=embedding,
+        vector_store=vector_store,
+        llm=llm,
+        faithfulness=faithfulness,
+        default_top_k=settings.default_top_k,
     )
 
     # Create FastAPI app
@@ -61,6 +86,7 @@ def create_app() -> FastAPI:
     app.include_router(ingest.create_router(ingestion_service))
     app.include_router(papers.create_router(vector_store))
     app.include_router(health.create_router(vector_store))
+    app.include_router(query.create_router(query_service))
 
     @app.get("/")
     async def root():

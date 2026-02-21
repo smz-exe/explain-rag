@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     # LLM Configuration
     anthropic_api_key: str = ""
-    claude_model: str = "claude-sonnet-4-20250514"
+    claude_model: str = "claude-sonnet-4-5-20250929"
     claude_max_tokens: int = 4096
 
     # Embedding Configuration
