@@ -6,10 +6,11 @@ from httpx import ASGITransport, AsyncClient
 from src.domain.entities.chunk import Chunk
 from src.domain.entities.explanation import ClaimVerification, FaithfulnessResult
 from src.domain.entities.paper import Paper
-from src.domain.entities.query import Citation, GenerationResult
+from src.domain.entities.query import Citation, GenerationResult, QueryResponse
 from src.domain.ports.embedding import EmbeddingPort
 from src.domain.ports.faithfulness import FaithfulnessPort
 from src.domain.ports.llm import LLMPort
+from src.domain.ports.query_storage import QueryStoragePort
 from src.domain.ports.reranker import RerankerPort
 from src.domain.ports.vector_store import VectorStorePort
 from src.main import create_app
@@ -223,6 +224,42 @@ class MockRerankerPort(RerankerPort):
         return results
 
 
+class MockQueryStoragePort(QueryStoragePort):
+    """Mock query storage adapter for testing."""
+
+    def __init__(self):
+        self.queries: dict[str, QueryResponse] = {}
+        self.store_calls: list[QueryResponse] = []
+
+    async def store(self, response: QueryResponse) -> None:
+        """Store a query response."""
+        self.store_calls.append(response)
+        self.queries[response.query_id] = response
+
+    async def get(self, query_id: str) -> QueryResponse | None:
+        """Retrieve a query response by ID."""
+        return self.queries.get(query_id)
+
+    async def list_recent(self, limit: int = 20) -> list[dict]:
+        """List recent queries."""
+        return [
+            {
+                "query_id": q.query_id,
+                "question": q.question,
+                "answer_preview": q.answer[:200] if q.answer else "",
+                "created_at": "2025-01-01T00:00:00Z",
+            }
+            for q in list(self.queries.values())[-limit:]
+        ]
+
+    async def delete(self, query_id: str) -> bool:
+        """Delete a query."""
+        if query_id in self.queries:
+            del self.queries[query_id]
+            return True
+        return False
+
+
 # Fixtures for mock adapters
 
 
@@ -254,3 +291,9 @@ def mock_faithfulness() -> MockFaithfulnessPort:
 def mock_reranker() -> MockRerankerPort:
     """Create a mock reranker adapter."""
     return MockRerankerPort()
+
+
+@pytest.fixture
+def mock_query_storage() -> MockQueryStoragePort:
+    """Create a mock query storage adapter."""
+    return MockQueryStoragePort()

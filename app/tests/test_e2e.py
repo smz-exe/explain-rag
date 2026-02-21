@@ -8,6 +8,7 @@ from tests.conftest import (
     MockEmbeddingPort,
     MockFaithfulnessPort,
     MockLLMPort,
+    MockQueryStoragePort,
     MockRerankerPort,
     MockVectorStorePort,
 )
@@ -21,6 +22,7 @@ def query_service(sample_chunks) -> QueryService:
     llm = MockLLMPort()
     faithfulness = MockFaithfulnessPort()
     reranker = MockRerankerPort()
+    query_storage = MockQueryStoragePort()
 
     return QueryService(
         embedding=embedding,
@@ -28,6 +30,7 @@ def query_service(sample_chunks) -> QueryService:
         llm=llm,
         faithfulness=faithfulness,
         reranker=reranker,
+        query_storage=query_storage,
     )
 
 
@@ -133,7 +136,7 @@ class TestFullQueryPipeline:
     @pytest.mark.asyncio
     async def test_get_query_not_found(self, query_service):
         """Test that get_query raises error for unknown ID."""
-        from src.application.query_service import QueryNotFoundError
+        from src.domain.ports.query_storage import QueryNotFoundError
 
         with pytest.raises(QueryNotFoundError):
             await query_service.get_query("nonexistent-id")
