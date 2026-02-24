@@ -1,4 +1,5 @@
 import logging
+import os
 import traceback
 
 from fastapi import FastAPI, Request
@@ -29,6 +30,10 @@ logger = logging.getLogger(__name__)
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     settings = Settings()
+
+    # Set HF_TOKEN for HuggingFace libraries (they read from os.environ)
+    if settings.hf_token:
+        os.environ["HF_TOKEN"] = settings.hf_token
 
     # Initialize outbound adapters
     logger.info(f"Initializing embedding adapter: {settings.embedding_model}")

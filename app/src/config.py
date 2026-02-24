@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     # Model Loading Configuration
     preload_models: bool = True  # Preload models at startup to avoid cold start
     hf_offline_mode: bool = False  # Use only locally cached HuggingFace models
+    hf_token: str = ""  # HuggingFace token for higher rate limits and faster downloads
 
     # Server Configuration
     api_host: str = "0.0.0.0"
