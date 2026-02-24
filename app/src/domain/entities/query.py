@@ -35,6 +35,9 @@ class RetrievedChunk(BaseModel):
     rerank_score: float | None = Field(
         default=None, description="Cross-encoder score if reranking enabled"
     )
+    original_rank: int = Field(
+        description="Rank before reranking (1-indexed), same as rank if reranking disabled"
+    )
     rank: int = Field(description="Final rank after retrieval/reranking (1-indexed)")
 
 

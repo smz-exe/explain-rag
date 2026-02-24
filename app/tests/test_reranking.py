@@ -160,6 +160,60 @@ class TestReranking:
             assert chunk.similarity_score is not None
             assert 0.0 <= chunk.similarity_score <= 1.0
 
+    @pytest.mark.asyncio
+    async def test_original_rank_preserved_with_reranking(self, query_service_with_reranking):
+        """Test that original_rank reflects pre-reranking position."""
+        service, _ = query_service_with_reranking
+
+        request = QueryRequest(question="What is self-attention?", enable_reranking=True)
+        response = await service.query(request)
+
+        # Mock reranker reverses order: original [001, 002, 003] -> reranked [003, 002, 001]
+        chunk_003 = next(c for c in response.retrieved_chunks if c.chunk_id == "chunk-003")
+        chunk_002 = next(c for c in response.retrieved_chunks if c.chunk_id == "chunk-002")
+        chunk_001 = next(c for c in response.retrieved_chunks if c.chunk_id == "chunk-001")
+
+        # Original ranks (before reranking)
+        assert chunk_001.original_rank == 1  # Was first in similarity search
+        assert chunk_002.original_rank == 2
+        assert chunk_003.original_rank == 3
+
+        # Final ranks (after reranking reversed order)
+        assert chunk_003.rank == 1  # Now first after reranking
+        assert chunk_002.rank == 2
+        assert chunk_001.rank == 3  # Now last after reranking
+
+    @pytest.mark.asyncio
+    async def test_original_rank_equals_rank_without_reranking(
+        self, query_service_without_reranking
+    ):
+        """Test that original_rank equals rank when reranking is disabled."""
+        service = query_service_without_reranking
+
+        request = QueryRequest(question="What is self-attention?", enable_reranking=False)
+        response = await service.query(request)
+
+        for chunk in response.retrieved_chunks:
+            assert chunk.original_rank == chunk.rank
+
+    @pytest.mark.asyncio
+    async def test_rank_change_calculation(self, query_service_with_reranking):
+        """Test that rank change can be calculated correctly."""
+        service, _ = query_service_with_reranking
+
+        request = QueryRequest(question="What is self-attention?", enable_reranking=True)
+        response = await service.query(request)
+
+        for chunk in response.retrieved_chunks:
+            rank_change = chunk.original_rank - chunk.rank
+            # Positive = promoted (moved up), Negative = demoted (moved down)
+            if chunk.chunk_id == "chunk-003":
+                assert rank_change == 2  # Was 3, now 1 (promoted by 2)
+            elif chunk.chunk_id == "chunk-001":
+                assert rank_change == -2  # Was 1, now 3 (demoted by 2)
+            else:
+                assert rank_change == 0  # chunk-002 stays at position 2
+
 
 class TestCrossEncoderReranker:
     """Test the CrossEncoderReranker adapter."""

@@ -109,6 +109,11 @@ class QueryService:
         reranking_time: float | None = None
         rerank_scores: dict[str, float] = {}
 
+        # Track original ranks BEFORE any reranking
+        original_ranks: dict[str, int] = {
+            chunk.id: rank for rank, (chunk, _) in enumerate(search_results, start=1)
+        }
+
         if request.enable_reranking and self._reranker is not None:
             logger.debug("Step 3: Reranking chunks")
             rerank_start = time.perf_counter()
@@ -145,6 +150,7 @@ class QueryService:
                     content=chunk.content,
                     similarity_score=score,
                     rerank_score=rerank_scores.get(chunk.id),
+                    original_rank=original_ranks[chunk.id],
                     rank=rank,
                 )
             )
