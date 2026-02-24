@@ -89,9 +89,7 @@ export function PapersTable() {
               {papers.map((paper) => (
                 <TableRow key={paper.paper_id}>
                   <TableCell className="font-medium">
-                    <span className="line-clamp-1">
-                      {paper.title}
-                    </span>
+                    <span className="line-clamp-1">{paper.title}</span>
                   </TableCell>
                   <TableCell className="font-mono text-xs">
                     {paper.arxiv_id}

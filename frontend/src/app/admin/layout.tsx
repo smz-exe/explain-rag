@@ -14,29 +14,29 @@ export default function AdminLayout({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background min-h-screen">
       <header className="border-b">
-        <div className="container mx-auto max-w-6xl px-4 py-4 flex justify-between items-center">
+        <div className="container mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-2">
-            <Link href="/" className="text-xl font-bold hover:text-primary">
+            <Link href="/" className="hover:text-primary text-xl font-bold">
               ExplainRAG
             </Link>
             <span className="text-muted-foreground">/</span>
             <span className="text-muted-foreground">Admin</span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
+            <span className="text-muted-foreground text-sm">
               {user?.username}
             </span>
             <Button variant="outline" size="sm" onClick={logout}>
-              <LogOut className="h-4 w-4 mr-2" />
+              <LogOut className="mr-2 h-4 w-4" />
               Logout
             </Button>
           </div>

@@ -7,6 +7,11 @@ import {
 } from "@/components/ui/collapsible";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import type { RetrievedChunk } from "@/api/model";
@@ -64,13 +69,36 @@ export function ChunksPanel({ chunks, highlightedChunkId }: ChunksPanelProps) {
                   </span>
                 </div>
                 <div className="ml-6 flex flex-wrap items-center gap-1 sm:ml-0 sm:gap-2">
-                  <Badge variant="outline">
-                    sim: {chunk.similarity_score.toFixed(3)}
-                  </Badge>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className="cursor-help">
+                        sim: {chunk.similarity_score.toFixed(3)}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="font-medium">Similarity Score</p>
+                      <p className="text-muted-foreground text-xs">
+                        Cosine similarity between query and chunk embeddings.
+                        Range: 0–1, higher = more similar.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
                   {chunk.rerank_score != null && (
-                    <Badge variant="secondary">
-                      rerank: {chunk.rerank_score.toFixed(3)}
-                    </Badge>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="secondary" className="cursor-help">
+                          rerank: {chunk.rerank_score.toFixed(3)}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="font-medium">Rerank Score</p>
+                        <p className="text-muted-foreground text-xs">
+                          Cross-encoder relevance score. Analyzes query+chunk
+                          together for more accurate ranking. Higher = more
+                          relevant.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                 </div>
               </CollapsibleTrigger>

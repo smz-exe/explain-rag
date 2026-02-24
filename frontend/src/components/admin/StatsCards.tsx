@@ -28,7 +28,7 @@ export function StatsCards() {
 
   if (error) {
     return (
-      <div className="text-red-500 p-4 bg-red-50 dark:bg-red-900/20 rounded-md">
+      <div className="rounded-md bg-red-50 p-4 text-red-500 dark:bg-red-900/20">
         Failed to load system stats
       </div>
     );
@@ -41,7 +41,7 @@ export function StatsCards() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium">Papers</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
+          <FileText className="text-muted-foreground h-4 w-4" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats?.papers_count ?? 0}</div>
@@ -50,7 +50,7 @@ export function StatsCards() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium">Chunks</CardTitle>
-          <Database className="h-4 w-4 text-muted-foreground" />
+          <Database className="text-muted-foreground h-4 w-4" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats?.chunks_count ?? 0}</div>
@@ -59,7 +59,7 @@ export function StatsCards() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium">Queries</CardTitle>
-          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          <MessageSquare className="text-muted-foreground h-4 w-4" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats?.queries_count ?? 0}</div>
@@ -68,11 +68,13 @@ export function StatsCards() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium">Status</CardTitle>
-          <Activity className="h-4 w-4 text-muted-foreground" />
+          <Activity className="text-muted-foreground h-4 w-4" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-green-600">
-            {stats?.backend_status === "healthy" ? "Healthy" : stats?.backend_status ?? "Unknown"}
+            {stats?.backend_status === "healthy"
+              ? "Healthy"
+              : (stats?.backend_status ?? "Unknown")}
           </div>
         </CardContent>
       </Card>

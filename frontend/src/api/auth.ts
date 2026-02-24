@@ -39,10 +39,7 @@ export async function login(data: LoginRequest): Promise<void> {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new AuthError(
-      errorData.detail || "Login failed",
-      response.status
-    );
+    throw new AuthError(errorData.detail || "Login failed", response.status);
   }
 }
 

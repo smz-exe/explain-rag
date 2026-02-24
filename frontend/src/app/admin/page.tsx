@@ -8,7 +8,7 @@ import { IngestForm } from "@/components/admin/IngestForm";
 export default function AdminPage() {
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+      <h1 className="mb-6 text-2xl font-bold">Admin Dashboard</h1>
 
       <div className="space-y-6">
         {/* System Metrics */}
