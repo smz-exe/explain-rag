@@ -37,11 +37,7 @@ class Settings(BaseSettings):
     # Server Configuration
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8501"]
-
-    # Streamlit Configuration
-    streamlit_port: int = 8501
-    fastapi_url: str = "http://localhost:8000"
+    cors_origins: list[str] = ["http://localhost:3000"]
 
     # Auth Configuration
     jwt_secret_key: str = "changeme-generate-a-secure-random-key"  # REQUIRED in production
