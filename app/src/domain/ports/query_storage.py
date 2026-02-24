@@ -56,3 +56,12 @@ class QueryStoragePort(ABC):
             True if deleted, False if not found.
         """
         ...
+
+    @abstractmethod
+    async def count(self) -> int:
+        """Get the total number of stored queries.
+
+        Returns:
+            Total count of queries in storage.
+        """
+        ...

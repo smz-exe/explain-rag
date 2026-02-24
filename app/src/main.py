@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.adapters.inbound.http import health, ingest, papers, query
+from src.adapters.inbound.http import health, ingest, papers, query, stats
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
 from src.adapters.outbound.chroma_store import ChromaVectorStore
 from src.adapters.outbound.cross_encoder_reranker import CrossEncoderReranker
@@ -130,6 +130,7 @@ def create_app() -> FastAPI:
     app.include_router(papers.create_router(vector_store))
     app.include_router(health.create_router(vector_store))
     app.include_router(query.create_router(query_service))
+    app.include_router(stats.create_router(vector_store, query_storage))
 
     @app.get("/")
     async def root():

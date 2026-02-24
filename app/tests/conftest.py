@@ -132,7 +132,7 @@ class MockVectorStorePort(VectorStorePort):
 
     async def get_stats(self) -> dict:
         """Return mock stats."""
-        return {"total_chunks": len(self.chunks), "total_papers": 1}
+        return {"chunk_count": len(self.chunks), "paper_count": 1}
 
     async def list_papers(self) -> list[dict]:
         """Return mock paper list."""
@@ -258,6 +258,10 @@ class MockQueryStoragePort(QueryStoragePort):
             del self.queries[query_id]
             return True
         return False
+
+    async def count(self) -> int:
+        """Get total query count."""
+        return len(self.queries)
 
 
 # Fixtures for mock adapters

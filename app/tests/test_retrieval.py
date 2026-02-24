@@ -138,8 +138,8 @@ class TestVectorStoreManagement:
 
         stats = await vector_store.get_stats()
 
-        assert "total_chunks" in stats
-        assert stats["total_chunks"] == 3
+        assert "chunk_count" in stats
+        assert stats["chunk_count"] == 3
 
     @pytest.mark.asyncio
     async def test_list_papers(self, sample_chunks):

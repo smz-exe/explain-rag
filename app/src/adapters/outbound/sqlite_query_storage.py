@@ -138,3 +138,13 @@ class SQLiteQueryStorage(QueryStoragePort):
             logger.debug(f"Deleted query {query_id}")
 
         return deleted
+
+    async def count(self) -> int:
+        """Get the total number of stored queries."""
+        await self._ensure_initialized()
+
+        async with aiosqlite.connect(self._db_path) as db, db.execute(
+            "SELECT COUNT(*) FROM queries"
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0

@@ -32,6 +32,26 @@ class IngestionResult:
     failed: list[dict[str, str]]
 
 
+@dataclass
+class SystemStats:
+    """System statistics from /stats endpoint."""
+
+    papers_count: int
+    chunks_count: int
+    queries_count: int
+    backend_status: str
+
+
+@dataclass
+class QuerySummary:
+    """Summary of a stored query."""
+
+    query_id: str
+    question: str
+    answer_preview: str
+    created_at: str
+
+
 class APIClient:
     """Client for communicating with the ExplainRAG FastAPI backend."""
 
@@ -181,3 +201,49 @@ class APIClient:
             response = client.get(f"/query/{query_id}/explanation")
             response.raise_for_status()
             return response.json()
+
+    def get_stats(self) -> SystemStats:
+        """Get system statistics.
+
+        Returns:
+            SystemStats with counts and backend status.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+        """
+        with self._get_client() as client:
+            response = client.get("/stats")
+            response.raise_for_status()
+            data = response.json()
+            return SystemStats(
+                papers_count=data.get("papers_count", 0),
+                chunks_count=data.get("chunks_count", 0),
+                queries_count=data.get("queries_count", 0),
+                backend_status=data.get("backend_status", "unknown"),
+            )
+
+    def list_queries(self, limit: int = 20) -> list[QuerySummary]:
+        """List recent queries.
+
+        Args:
+            limit: Maximum number of queries to return.
+
+        Returns:
+            List of QuerySummary objects.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+        """
+        with self._get_client() as client:
+            response = client.get("/query/list", params={"limit": limit})
+            response.raise_for_status()
+            data = response.json()
+            return [
+                QuerySummary(
+                    query_id=q.get("query_id", ""),
+                    question=q.get("question", ""),
+                    answer_preview=q.get("answer_preview", ""),
+                    created_at=q.get("created_at", ""),
+                )
+                for q in data.get("queries", [])
+            ]
