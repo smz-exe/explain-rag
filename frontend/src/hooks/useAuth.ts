@@ -3,15 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getMe,
-  login as apiLogin,
-  logout as apiLogout,
-  UserInfo,
-  LoginRequest,
-} from "@/api/auth";
+  loginAuthLoginPost,
+  logoutAuthLogoutPost,
+  getCurrentUserAuthMeGet,
+} from "@/api/queries/auth/auth";
+import type { LoginRequest, UserResponse } from "@/api/model";
 
 export interface UseAuthReturn {
-  user: UserInfo | null;
+  user: UserResponse | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (data: LoginRequest) => Promise<void>;
@@ -23,14 +22,17 @@ export interface UseAuthReturn {
  * Hook for managing authentication state.
  */
 export function useAuth(): UseAuthReturn {
-  const [user, setUser] = useState<UserInfo | null>(null);
+  const [user, setUser] = useState<UserResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   const checkAuth = useCallback(async () => {
     try {
-      const userData = await getMe();
-      setUser(userData);
+      const response = await getCurrentUserAuthMeGet();
+      // custom-fetch throws on non-200, so we can safely narrow
+      if (response.status === 200) {
+        setUser(response.data);
+      }
     } catch {
       setUser(null);
     } finally {
@@ -43,13 +45,13 @@ export function useAuth(): UseAuthReturn {
   }, [checkAuth]);
 
   const login = async (data: LoginRequest) => {
-    await apiLogin(data);
+    await loginAuthLoginPost(data);
     await checkAuth();
     router.push("/admin");
   };
 
   const logout = async () => {
-    await apiLogout();
+    await logoutAuthLogoutPost();
     setUser(null);
     router.push("/login");
   };
