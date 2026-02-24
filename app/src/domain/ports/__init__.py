@@ -4,6 +4,7 @@ from .llm import InsufficientContextError, LLMGenerationError, LLMPort
 from .paper_source import PaperNotFoundError, PaperSourcePort, PDFParsingError
 from .query_storage import QueryNotFoundError, QueryStoragePort
 from .reranker import RerankerPort
+from .user_storage import User, UserStoragePort
 from .vector_store import VectorStorePort
 
 __all__ = [
@@ -20,4 +21,6 @@ __all__ = [
     "RerankerPort",
     "QueryStoragePort",
     "QueryNotFoundError",
+    "UserStoragePort",
+    "User",
 ]

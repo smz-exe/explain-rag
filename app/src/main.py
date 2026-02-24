@@ -5,10 +5,11 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.adapters.inbound.http import health, ingest, papers, query, stats
+from src.adapters.inbound.http import auth, health, ingest, papers, query, stats
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
 from src.adapters.outbound.chroma_store import ChromaVectorStore
 from src.adapters.outbound.cross_encoder_reranker import CrossEncoderReranker
+from src.adapters.outbound.env_user_storage import EnvUserStorage
 from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
 from src.adapters.outbound.langchain_rag import LangChainRAG
 from src.adapters.outbound.sqlite_query_storage import SQLiteQueryStorage
@@ -64,6 +65,12 @@ def create_app() -> FastAPI:
 
     logger.info(f"Initializing query storage: {settings.sqlite_db_path}")
     query_storage = SQLiteQueryStorage(db_path=settings.sqlite_db_path)
+
+    logger.info("Initializing user storage for auth")
+    user_storage = EnvUserStorage(
+        admin_username=settings.admin_username,
+        admin_password_hash=settings.admin_password_hash,
+    )
 
     # Preload models at startup to avoid cold start on first query
     if settings.preload_models:
@@ -126,6 +133,7 @@ def create_app() -> FastAPI:
         )
 
     # Mount routers
+    app.include_router(auth.create_router(user_storage, settings))
     app.include_router(ingest.create_router(ingestion_service))
     app.include_router(papers.create_router(vector_store))
     app.include_router(health.create_router(vector_store))

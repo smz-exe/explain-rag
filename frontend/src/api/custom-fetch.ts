@@ -25,6 +25,7 @@ export const customFetch = async <T>(
   try {
     response = await fetch(`${BASE_URL}${url}`, {
       ...options,
+      credentials: "include", // Include cookies for auth
     });
   } catch {
     throw new Error(

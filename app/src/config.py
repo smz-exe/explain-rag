@@ -42,3 +42,10 @@ class Settings(BaseSettings):
     # Streamlit Configuration
     streamlit_port: int = 8501
     fastapi_url: str = "http://localhost:8000"
+
+    # Auth Configuration
+    jwt_secret_key: str = "changeme-generate-a-secure-random-key"  # REQUIRED in production
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 1440  # 24 hours
+    admin_username: str = "admin"
+    admin_password_hash: str = ""  # bcrypt hash, generate with: python -c "import bcrypt; print(bcrypt.hashpw(b'password', bcrypt.gensalt(12)).decode())"
