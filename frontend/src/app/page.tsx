@@ -104,6 +104,7 @@ export default function Home() {
           <div className="grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
             <div className="space-y-4 md:col-span-1 md:space-y-6 lg:col-span-2">
               <AnswerDisplay
+                queryId={response.query_id}
                 question={response.question}
                 answer={response.answer}
                 citations={response.citations}

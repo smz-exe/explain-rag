@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from src.application.query_service import QueryService
@@ -89,4 +90,125 @@ def create_router(query_service: QueryService) -> APIRouter:
             total=len(queries),
         )
 
+    @router.get("/{query_id}/export")
+    async def export_query(query_id: str) -> Response:
+        """Export a query as a Markdown file.
+
+        Args:
+            query_id: The UUID of the query to export.
+
+        Returns:
+            A downloadable Markdown file containing the query details.
+
+        Raises:
+            404: If query_id not found.
+        """
+        try:
+            query_response = await query_service.get_query(query_id)
+        except QueryNotFoundError:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Query not found: {query_id}",
+            ) from None
+
+        markdown = _format_query_as_markdown(query_response)
+
+        return Response(
+            content=markdown,
+            media_type="text/markdown; charset=utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="query-{query_id[:8]}.md"',
+            },
+        )
+
     return router
+
+
+def _format_query_as_markdown(query: QueryResponse) -> str:
+    """Format a QueryResponse as Markdown for export.
+
+    Args:
+        query: The query response to format.
+
+    Returns:
+        Markdown-formatted string.
+    """
+    lines = [
+        "# Query Export",
+        "",
+        f"**Query ID:** `{query.query_id}`",
+        "",
+        "## Question",
+        "",
+        query.question,
+        "",
+        "## Answer",
+        "",
+        query.answer,
+        "",
+        "## Retrieved Chunks",
+        "",
+    ]
+
+    for i, chunk in enumerate(query.retrieved_chunks, 1):
+        score_info = f"Similarity: {chunk.similarity_score:.3f}"
+        if chunk.rerank_score is not None:
+            score_info += f", Rerank: {chunk.rerank_score:.3f}"
+
+        lines.extend(
+            [
+                f"### [{i}] {chunk.paper_title}",
+                "",
+                f"**Scores:** {score_info}",
+                "",
+                "```",
+                chunk.content[:500] + ("..." if len(chunk.content) > 500 else ""),
+                "```",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "## Faithfulness",
+            "",
+            f"**Overall Score:** {query.faithfulness.score:.0%}",
+            "",
+        ]
+    )
+
+    if query.faithfulness.claims:
+        lines.append("### Claims")
+        lines.append("")
+        for claim in query.faithfulness.claims:
+            verdict_emoji = {"supported": "+", "unsupported": "-", "partial": "~"}.get(
+                claim.verdict, "?"
+            )
+            lines.append(f"- [{verdict_emoji}] **{claim.verdict.upper()}:** {claim.claim}")
+        lines.append("")
+
+    lines.extend(
+        [
+            "## Performance",
+            "",
+            f"- Embedding: {query.trace.embedding_time_ms:.0f}ms",
+            f"- Retrieval: {query.trace.retrieval_time_ms:.0f}ms",
+        ]
+    )
+
+    if query.trace.reranking_time_ms is not None:
+        lines.append(f"- Reranking: {query.trace.reranking_time_ms:.0f}ms")
+
+    lines.extend(
+        [
+            f"- Generation: {query.trace.generation_time_ms:.0f}ms",
+            f"- Faithfulness: {query.trace.faithfulness_time_ms:.0f}ms",
+            f"- **Total: {query.trace.total_time_ms:.0f}ms**",
+            "",
+            "---",
+            "",
+            "*Exported from ExplainRAG*",
+        ]
+    )
+
+    return "\n".join(lines)

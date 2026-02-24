@@ -2,9 +2,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ExportButton } from "@/components/ExportButton";
 import type { Citation } from "@/api/model";
 
 interface AnswerDisplayProps {
+  queryId?: string;
   question: string;
   answer: string;
   citations: Citation[];
@@ -12,6 +14,7 @@ interface AnswerDisplayProps {
 }
 
 export function AnswerDisplay({
+  queryId,
   question,
   answer,
   citations,
@@ -49,7 +52,10 @@ export function AnswerDisplay({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Answer</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">Answer</CardTitle>
+          {queryId && <ExportButton queryId={queryId} />}
+        </div>
         <p className="text-muted-foreground text-sm">{question}</p>
       </CardHeader>
       <CardContent>

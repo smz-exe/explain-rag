@@ -1,5 +1,18 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+/**
+ * Get the base API URL.
+ * Use this for constructing URLs that bypass the fetch wrapper (e.g., file downloads).
+ */
+export const getApiBaseUrl = () => BASE_URL;
+
+/**
+ * Get the URL for downloading a query export as Markdown.
+ * Used for file downloads that need to open in a new tab.
+ */
+export const getQueryExportUrl = (queryId: string) =>
+  `${BASE_URL}/query/${queryId}/export`;
+
 export class APIError extends Error {
   status: number;
   detail?: string;
