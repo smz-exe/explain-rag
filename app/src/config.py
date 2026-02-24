@@ -1,3 +1,4 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,10 +39,28 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     cors_origins: list[str] = ["http://localhost:3000"]
+    environment: str = "development"  # "development" or "production"
 
     # Auth Configuration
-    jwt_secret_key: str = "changeme-generate-a-secure-random-key"  # REQUIRED in production
+    jwt_secret_key: str = (
+        ""  # REQUIRED - generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+    )
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
     admin_username: str = "admin"
-    admin_password_hash: str = ""  # bcrypt hash, generate with: python -c "import bcrypt; print(bcrypt.hashpw(b'password', bcrypt.gensalt(12)).decode())"
+    admin_password_hash: str = ""  # bcrypt hash
+
+    @property
+    def secure_cookies(self) -> bool:
+        """Use secure cookies in production (requires HTTPS)."""
+        return self.environment == "production"
+
+    @model_validator(mode="after")
+    def validate_jwt_secret(self) -> "Settings":
+        """Ensure JWT secret is configured with sufficient entropy."""
+        if not self.jwt_secret_key or len(self.jwt_secret_key) < 32:
+            raise ValueError(
+                "JWT_SECRET_KEY must be set and at least 32 characters. "
+                'Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
+            )
+        return self

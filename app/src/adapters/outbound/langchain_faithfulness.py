@@ -132,9 +132,7 @@ class LangChainFaithfulness(FaithfulnessPort):
         """Decompose answer into individual claims."""
         prompt = DECOMPOSE_PROMPT.format(answer=answer)
 
-        response = await asyncio.to_thread(
-            self._invoke_with_retry, [HumanMessage(content=prompt)]
-        )
+        response = await asyncio.to_thread(self._invoke_with_retry, [HumanMessage(content=prompt)])
 
         # Parse JSON response
         try:
@@ -159,9 +157,7 @@ class LangChainFaithfulness(FaithfulnessPort):
         chunks_text = self._format_chunks(chunks)
         prompt = VERIFY_PROMPT.format(claims=claims_text, chunks=chunks_text)
 
-        response = await asyncio.to_thread(
-            self._invoke_with_retry, [HumanMessage(content=prompt)]
-        )
+        response = await asyncio.to_thread(self._invoke_with_retry, [HumanMessage(content=prompt)])
 
         # Parse JSON array response
         try:

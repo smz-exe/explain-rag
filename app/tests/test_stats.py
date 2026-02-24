@@ -4,9 +4,16 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_stats_endpoint_returns_correct_structure(client):
-    """Test that /stats returns the expected structure."""
+async def test_stats_endpoint_requires_auth(client):
+    """Test that /stats requires authentication."""
     response = await client.get("/stats")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_stats_endpoint_returns_correct_structure(authenticated_client):
+    """Test that /stats returns the expected structure."""
+    response = await authenticated_client.get("/stats")
     assert response.status_code == 200
 
     data = response.json()
@@ -18,9 +25,9 @@ async def test_stats_endpoint_returns_correct_structure(client):
 
 
 @pytest.mark.asyncio
-async def test_stats_returns_integer_counts(client):
+async def test_stats_returns_integer_counts(authenticated_client):
     """Test that stats counts are integers."""
-    response = await client.get("/stats")
+    response = await authenticated_client.get("/stats")
     assert response.status_code == 200
 
     data = response.json()

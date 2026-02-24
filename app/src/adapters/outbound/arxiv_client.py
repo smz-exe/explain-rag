@@ -58,9 +58,7 @@ class ArxivPaperSource(PaperSourcePort):
         search = arxiv.Search(id_list=[clean_id])
 
         try:
-            results = await asyncio.to_thread(
-                self._fetch_arxiv_results, self._client, search
-            )
+            results = await asyncio.to_thread(self._fetch_arxiv_results, self._client, search)
         except Exception as e:
             logger.error(f"Failed to fetch paper {arxiv_id}: {e}")
             raise PaperNotFoundError(f"Failed to fetch paper {arxiv_id}: {e}") from e
@@ -90,9 +88,7 @@ class ArxivPaperSource(PaperSourcePort):
         )
 
         try:
-            results = await asyncio.to_thread(
-                self._fetch_arxiv_results, self._client, search
-            )
+            results = await asyncio.to_thread(self._fetch_arxiv_results, self._client, search)
         except Exception as e:
             logger.error(f"arXiv search failed for '{query}': {e}")
             raise
@@ -125,14 +121,10 @@ class ArxivPaperSource(PaperSourcePort):
             # Download the PDF with retry
             search = arxiv.Search(id_list=[paper.arxiv_id.split("v")[0]])
             try:
-                results = await asyncio.to_thread(
-                    self._fetch_arxiv_results, self._client, search
-                )
+                results = await asyncio.to_thread(self._fetch_arxiv_results, self._client, search)
             except Exception as e:
                 logger.error(f"Failed to fetch paper for download: {paper.arxiv_id}: {e}")
-                raise PDFParsingError(
-                    f"Could not download PDF for {paper.arxiv_id}: {e}"
-                ) from e
+                raise PDFParsingError(f"Could not download PDF for {paper.arxiv_id}: {e}") from e
 
             if not results:
                 raise PDFParsingError(f"Could not download PDF for {paper.arxiv_id}")
@@ -146,9 +138,7 @@ class ArxivPaperSource(PaperSourcePort):
                 )
             except Exception as e:
                 logger.error(f"PDF download failed for {paper.arxiv_id}: {e}")
-                raise PDFParsingError(
-                    f"Failed to download PDF for {paper.arxiv_id}: {e}"
-                ) from e
+                raise PDFParsingError(f"Failed to download PDF for {paper.arxiv_id}: {e}") from e
 
             # Parse PDF and extract text
             text = await self._extract_text_from_pdf(pdf_path)
@@ -174,14 +164,10 @@ class ArxivPaperSource(PaperSourcePort):
                         text_parts.append(page.get_text())
                     except Exception as e:
                         # Log but continue with other pages
-                        logger.warning(
-                            f"Failed to extract text from page {page_num}: {e}"
-                        )
+                        logger.warning(f"Failed to extract text from page {page_num}: {e}")
                 return "\n".join(text_parts)
             except Exception as e:
-                raise PDFParsingError(
-                    f"Failed to open or parse PDF {pdf_path}: {e}"
-                ) from e
+                raise PDFParsingError(f"Failed to open or parse PDF {pdf_path}: {e}") from e
             finally:
                 if doc:
                     doc.close()

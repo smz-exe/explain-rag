@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from src.adapters.inbound.http.auth import require_admin
 from src.domain.ports.query_storage import QueryStoragePort
 from src.domain.ports.vector_store import VectorStorePort
 
@@ -29,7 +30,7 @@ def create_router(
     """
     router = APIRouter(tags=["admin"])
 
-    @router.get("/stats", response_model=SystemStats)
+    @router.get("/stats", response_model=SystemStats, dependencies=[Depends(require_admin)])
     async def get_stats() -> SystemStats:
         """Get system statistics for admin dashboard."""
         vector_stats = await vector_store.get_stats()

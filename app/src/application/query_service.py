@@ -130,9 +130,7 @@ class QueryService:
             rerank_scores = {chunk.id: score for chunk, score in reranked}
             # Preserve original similarity scores while using reranked order
             original_scores = {chunk.id: score for chunk, score in search_results}
-            search_results = [
-                (chunk, original_scores[chunk.id]) for chunk, _ in reranked
-            ]
+            search_results = [(chunk, original_scores[chunk.id]) for chunk, _ in reranked]
 
             reranking_time = (time.perf_counter() - rerank_start) * 1000
             logger.debug(f"Reranking completed in {reranking_time:.1f}ms")

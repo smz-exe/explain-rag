@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from src.adapters.inbound.http.auth import require_admin
 from src.domain.ports.vector_store import VectorStorePort
 
 
@@ -56,7 +57,9 @@ def create_router(vector_store: VectorStorePort) -> APIRouter:
             total=len(papers),
         )
 
-    @router.delete("/{paper_id}", response_model=DeletePaperResponse)
+    @router.delete(
+        "/{paper_id}", response_model=DeletePaperResponse, dependencies=[Depends(require_admin)]
+    )
     async def delete_paper(paper_id: str) -> DeletePaperResponse:
         """Delete a paper and all its chunks.
 

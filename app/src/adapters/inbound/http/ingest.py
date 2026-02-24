@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from src.adapters.inbound.http.auth import require_admin
 from src.application.ingestion_service import IngestionService
 
 
@@ -42,7 +43,7 @@ def create_router(ingestion_service: IngestionService) -> APIRouter:
     """
     router = APIRouter(prefix="/ingest", tags=["ingestion"])
 
-    @router.post("", response_model=IngestResponse)
+    @router.post("", response_model=IngestResponse, dependencies=[Depends(require_admin)])
     async def ingest_papers(request: IngestRequest) -> IngestResponse:
         """Ingest papers from arXiv.
 

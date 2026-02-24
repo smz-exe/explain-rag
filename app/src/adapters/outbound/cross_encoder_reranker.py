@@ -62,9 +62,7 @@ class CrossEncoderReranker(RerankerPort):
         pairs = [(query, chunk.content) for chunk in chunks]
 
         # Get scores from cross-encoder (sync operation wrapped in thread)
-        scores = await asyncio.to_thread(
-            self.model.predict, pairs, show_progress_bar=False
-        )
+        scores = await asyncio.to_thread(self.model.predict, pairs, show_progress_bar=False)
 
         # Pair chunks with scores and sort by score descending
         chunk_scores = list(zip(chunks, scores.tolist(), strict=True))

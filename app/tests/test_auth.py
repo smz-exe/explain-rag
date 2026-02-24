@@ -64,6 +64,7 @@ class TestAuthWithConfiguredPassword:
 
         # Import after setting env vars
         from src.main import create_app
+
         return create_app()
 
     @pytest.fixture

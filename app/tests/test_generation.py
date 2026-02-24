@@ -138,9 +138,7 @@ class TestInsufficientContext:
     async def test_generate_with_custom_answer(self, sample_chunks):
         """Test that custom answer can be configured."""
         custom_answer = "Custom answer [1]."
-        custom_citations = [
-            Citation(claim="Custom claim", chunk_ids=["chunk-001"], confidence=0.8)
-        ]
+        custom_citations = [Citation(claim="Custom claim", chunk_ids=["chunk-001"], confidence=0.8)]
         llm = MockLLMPort(answer=custom_answer, citations=custom_citations)
 
         result = await llm.generate(

@@ -68,7 +68,7 @@ def create_router(query_service: QueryService) -> APIRouter:
 
     @router.get("/list", response_model=QueriesResponse)
     async def list_queries(
-        limit: int = Query(default=20, ge=1, le=100, description="Max number of queries to return")
+        limit: int = Query(default=20, ge=1, le=100, description="Max number of queries to return"),
     ) -> QueriesResponse:
         """List recent queries with summary information.
 

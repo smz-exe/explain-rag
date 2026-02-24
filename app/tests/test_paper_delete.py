@@ -1,7 +1,6 @@
 """Tests for paper deletion functionality."""
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
 from tests.conftest import MockVectorStorePort
 
@@ -10,16 +9,19 @@ class TestDeletePaperEndpoint:
     """Test the DELETE /papers/{paper_id} endpoint."""
 
     @pytest.mark.asyncio
-    async def test_delete_paper_not_found_endpoint(self, app):
+    async def test_delete_paper_requires_auth(self, client):
+        """Test DELETE endpoint requires authentication."""
+        response = await client.delete("/papers/nonexistent-paper-id")
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_delete_paper_not_found_endpoint(self, authenticated_client):
         """Test DELETE endpoint returns 404 for non-existent paper."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            # The real app's vector store is empty, so any paper_id returns 404
-            response = await client.delete("/papers/nonexistent-paper-id")
-            assert response.status_code == 404
-            data = response.json()
-            assert "Paper not found" in data["detail"]
+        # The real app's vector store is empty, so any paper_id returns 404
+        response = await authenticated_client.delete("/papers/nonexistent-paper-id")
+        assert response.status_code == 404
+        data = response.json()
+        assert "Paper not found" in data["detail"]
 
     @pytest.mark.asyncio
     async def test_delete_paper_returns_chunk_count(self, sample_chunks):
@@ -60,15 +62,15 @@ class TestDeletePaperRouter:
     """Test DELETE endpoint via router."""
 
     @pytest.mark.asyncio
-    async def test_delete_endpoint_not_found(self, client):
+    async def test_delete_endpoint_not_found(self, authenticated_client):
         """Test DELETE returns 404 for unknown paper."""
-        response = await client.delete("/papers/unknown-paper-id")
+        response = await authenticated_client.delete("/papers/unknown-paper-id")
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_delete_endpoint_format(self, client):
+    async def test_delete_endpoint_format(self, authenticated_client):
         """Test the response format for 404."""
-        response = await client.delete("/papers/unknown")
+        response = await authenticated_client.delete("/papers/unknown")
         assert response.status_code == 404
         data = response.json()
         assert "detail" in data

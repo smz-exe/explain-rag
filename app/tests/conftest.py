@@ -1,5 +1,16 @@
 """Test fixtures for ExplainRAG tests."""
 
+import os
+
+# Set required environment variables before importing app
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-only")
+os.environ.setdefault("ADMIN_USERNAME", "admin")
+# bcrypt hash for "testpassword"
+os.environ.setdefault(
+    "ADMIN_PASSWORD_HASH",
+    "$2b$12$u9la33VyaVebIX4B9Y6w1.J1YQd/UzQalxP4q17qqT8apDiKTCg3e",
+)
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -25,9 +36,20 @@ def app():
 @pytest.fixture
 async def client(app):
     """Create an async test client."""
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+
+
+@pytest.fixture
+async def authenticated_client(app):
+    """Create an authenticated async test client with admin credentials."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        # Login to get the auth cookie
+        response = await client.post(
+            "/auth/login",
+            json={"username": "admin", "password": "testpassword"},
+        )
+        assert response.status_code == 200, f"Login failed: {response.json()}"
         yield client
 
 
@@ -151,7 +173,9 @@ class MockLLMPort(LLMPort):
     def __init__(self, answer: str | None = None, citations: list[Citation] | None = None):
         self.answer = answer or "Self-attention is a mechanism [1]. It relates positions [2]."
         self.citations = citations or [
-            Citation(claim="Self-attention is a mechanism", chunk_ids=["chunk-001"], confidence=0.9),
+            Citation(
+                claim="Self-attention is a mechanism", chunk_ids=["chunk-001"], confidence=0.9
+            ),
             Citation(claim="It relates positions", chunk_ids=["chunk-002"], confidence=0.85),
         ]
         self.generate_calls: list[tuple[str, list[Chunk]]] = []
