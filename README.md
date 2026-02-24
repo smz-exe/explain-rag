@@ -17,6 +17,10 @@ uv run uvicorn src.main:app --reload --port 8000
 
 # Run tests
 uv run pytest tests/ -v
+
+# Lint and format
+uv run ruff check src/ tests/
+uv run ruff format src/ tests/
 ```
 
 ### Frontend (Next.js)
@@ -35,6 +39,10 @@ pnpm dev
 
 # Run E2E tests
 pnpm test:e2e
+
+# Lint and format
+pnpm lint
+pnpm format
 ```
 
 ## Usage
