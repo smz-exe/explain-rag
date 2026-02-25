@@ -33,6 +33,16 @@ from src.application.coordinates_service import CoordinatesService
 from src.application.ingestion_service import IngestionService
 from src.application.query_service import QueryService
 from src.config import Settings
+from src.domain.ports.clustering import ClusteringPort
+from src.domain.ports.coordinates_storage import CoordinatesStoragePort
+from src.domain.ports.dimensionality_reduction import DimensionalityReductionPort
+from src.domain.ports.embedding import EmbeddingPort
+from src.domain.ports.evaluation import EvaluationPort
+from src.domain.ports.faithfulness import FaithfulnessPort
+from src.domain.ports.llm import LLMPort
+from src.domain.ports.query_storage import QueryStoragePort
+from src.domain.ports.reranker import RerankerPort
+from src.domain.ports.vector_store import VectorStorePort
 
 # Configure logging
 logging.basicConfig(
@@ -42,8 +52,39 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> FastAPI:
-    """Create and configure the FastAPI application."""
+def create_app(
+    *,
+    embedding: EmbeddingPort | None = None,
+    vector_store: VectorStorePort | None = None,
+    llm: LLMPort | None = None,
+    faithfulness: FaithfulnessPort | None = None,
+    reranker: RerankerPort | None = None,
+    query_storage: QueryStoragePort | None = None,
+    coordinates_storage: CoordinatesStoragePort | None = None,
+    evaluator: EvaluationPort | None = None,
+    dim_reducer: DimensionalityReductionPort | None = None,
+    clusterer: ClusteringPort | None = None,
+) -> FastAPI:
+    """Create and configure the FastAPI application.
+
+    All adapter parameters are optional. If not provided, real production
+    adapters will be created. Pass mock adapters for testing.
+
+    Args:
+        embedding: Embedding adapter (default: SentenceTransformerEmbedding)
+        vector_store: Vector store adapter (default: ChromaVectorStore)
+        llm: LLM adapter (default: LangChainRAG)
+        faithfulness: Faithfulness adapter (default: LangChainFaithfulness)
+        reranker: Reranker adapter (default: CrossEncoderReranker)
+        query_storage: Query storage adapter (default: SQLiteQueryStorage)
+        coordinates_storage: Coordinates storage adapter (default: SQLiteCoordinatesStorage)
+        evaluator: Evaluation adapter (default: RAGASEvaluator)
+        dim_reducer: Dimensionality reduction adapter (default: UMAPReducer)
+        clusterer: Clustering adapter (default: HDBSCANClusterer)
+
+    Returns:
+        Configured FastAPI application
+    """
     settings = Settings()
 
     # Set HF_TOKEN for HuggingFace libraries (they read from os.environ)
@@ -51,45 +92,53 @@ def create_app() -> FastAPI:
     if hf_token:
         os.environ["HF_TOKEN"] = hf_token
 
-    # Initialize outbound adapters
-    logger.info(f"Initializing embedding adapter: {settings.embedding_model}")
-    embedding = SentenceTransformerEmbedding(
-        model_name=settings.embedding_model,
-        local_files_only=settings.hf_offline_mode,
-    )
+    # Initialize outbound adapters (use provided or create real ones)
+    if embedding is None:
+        logger.info(f"Initializing embedding adapter: {settings.embedding_model}")
+        embedding = SentenceTransformerEmbedding(
+            model_name=settings.embedding_model,
+            local_files_only=settings.hf_offline_mode,
+        )
 
-    logger.info(f"Initializing vector store: {settings.chroma_persist_dir}")
-    vector_store = ChromaVectorStore(persist_dir=settings.chroma_persist_dir)
+    if vector_store is None:
+        logger.info(f"Initializing vector store: {settings.chroma_persist_dir}")
+        vector_store = ChromaVectorStore(persist_dir=settings.chroma_persist_dir)
 
     logger.info("Initializing arXiv paper source")
     paper_source = ArxivPaperSource()
 
     # Initialize LLM adapters
     api_key = settings.anthropic_api_key.get_secret_value()
-    logger.info(f"Initializing LLM adapter: {settings.claude_model}")
-    llm = LangChainRAG(
-        model=settings.claude_model,
-        api_key=api_key,
-        max_tokens=settings.claude_max_tokens,
-    )
 
-    logger.info("Initializing faithfulness adapter")
-    faithfulness = LangChainFaithfulness(
-        model=settings.claude_model,
-        api_key=api_key,
-    )
+    if llm is None:
+        logger.info(f"Initializing LLM adapter: {settings.claude_model}")
+        llm = LangChainRAG(
+            model=settings.claude_model,
+            api_key=api_key,
+            max_tokens=settings.claude_max_tokens,
+        )
 
-    logger.info(f"Initializing reranker: {settings.reranker_model}")
-    reranker = CrossEncoderReranker(
-        model_name=settings.reranker_model,
-        local_files_only=settings.hf_offline_mode,
-    )
+    if faithfulness is None:
+        logger.info("Initializing faithfulness adapter")
+        faithfulness = LangChainFaithfulness(
+            model=settings.claude_model,
+            api_key=api_key,
+        )
 
-    logger.info(f"Initializing query storage: {settings.sqlite_db_path}")
-    query_storage = SQLiteQueryStorage(db_path=settings.sqlite_db_path)
+    if reranker is None:
+        logger.info(f"Initializing reranker: {settings.reranker_model}")
+        reranker = CrossEncoderReranker(
+            model_name=settings.reranker_model,
+            local_files_only=settings.hf_offline_mode,
+        )
 
-    logger.info(f"Initializing coordinates storage: {settings.sqlite_db_path}")
-    coordinates_storage = SQLiteCoordinatesStorage(db_path=settings.sqlite_db_path)
+    if query_storage is None:
+        logger.info(f"Initializing query storage: {settings.sqlite_db_path}")
+        query_storage = SQLiteQueryStorage(db_path=settings.sqlite_db_path)
+
+    if coordinates_storage is None:
+        logger.info(f"Initializing coordinates storage: {settings.sqlite_db_path}")
+        coordinates_storage = SQLiteCoordinatesStorage(db_path=settings.sqlite_db_path)
 
     logger.info("Initializing user storage for auth")
     user_storage = EnvUserStorage(
@@ -97,34 +146,41 @@ def create_app() -> FastAPI:
         admin_password_hash=settings.admin_password_hash.get_secret_value(),
     )
 
-    logger.info("Initializing RAGAS evaluator")
-    evaluator = RAGASEvaluator(
-        model=settings.claude_model,
-        api_key=api_key,
-        embedding_model=settings.embedding_model,
-        max_tokens=settings.claude_max_tokens,
-        timeout=settings.claude_timeout,
-        max_retries=settings.claude_max_retries,
-    )
+    if evaluator is None:
+        logger.info("Initializing RAGAS evaluator")
+        evaluator = RAGASEvaluator(
+            model=settings.claude_model,
+            api_key=api_key,
+            embedding_model=settings.embedding_model,
+            max_tokens=settings.claude_max_tokens,
+            timeout=settings.claude_timeout,
+            max_retries=settings.claude_max_retries,
+        )
 
-    logger.info("Initializing dimensionality reduction adapter (UMAP)")
-    dim_reducer = UMAPReducer(
-        n_neighbors=settings.umap_n_neighbors,
-        min_dist=settings.umap_min_dist,
-        random_state=42,
-    )
+    if dim_reducer is None:
+        logger.info("Initializing dimensionality reduction adapter (UMAP)")
+        dim_reducer = UMAPReducer(
+            n_neighbors=settings.umap_n_neighbors,
+            min_dist=settings.umap_min_dist,
+            random_state=42,
+        )
 
-    logger.info("Initializing clustering adapter (HDBSCAN)")
-    clusterer = HDBSCANClusterer(
-        min_cluster_size=settings.hdbscan_min_cluster_size,
-        min_samples=settings.hdbscan_min_samples,
-    )
+    if clusterer is None:
+        logger.info("Initializing clustering adapter (HDBSCAN)")
+        clusterer = HDBSCANClusterer(
+            min_cluster_size=settings.hdbscan_min_cluster_size,
+            min_samples=settings.hdbscan_min_samples,
+        )
 
     # Preload models at startup to avoid cold start on first query
+    # Only preload if using real adapters (they have preload method)
     if settings.preload_models:
-        logger.info("Preloading models...")
-        embedding.preload()
-        reranker.preload()
+        if hasattr(embedding, "preload"):
+            logger.info("Preloading embedding model...")
+            embedding.preload()
+        if hasattr(reranker, "preload"):
+            logger.info("Preloading reranker model...")
+            reranker.preload()
         logger.info("Models preloaded successfully")
 
     # Initialize application services

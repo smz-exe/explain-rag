@@ -1,22 +1,51 @@
 import pytest
+from httpx import ASGITransport, AsyncClient
 
 from src.domain.entities.chunk import Chunk
 from src.domain.entities.explanation import ClaimVerification
+from src.main import create_app
+from tests.conftest import (
+    MockClusteringPort,
+    MockCoordinatesStoragePort,
+    MockDimensionalityReductionPort,
+    MockEmbeddingPort,
+    MockEvaluationPort,
+    MockFaithfulnessPort,
+    MockLLMPort,
+    MockQueryStoragePort,
+    MockRerankerPort,
+    MockVectorStorePort,
+)
 
 
 @pytest.mark.asyncio
-async def test_query_endpoint_no_chunks(client):
+async def test_query_endpoint_no_chunks():
     """Test query endpoint returns insufficient context when no papers ingested."""
-    response = await client.post(
-        "/query",
-        json={"question": "What is hexagonal architecture?"},
+    # Create app with empty vector store to test "no chunks" scenario
+    app = create_app(
+        embedding=MockEmbeddingPort(),
+        vector_store=MockVectorStorePort(chunks=[]),  # Empty!
+        llm=MockLLMPort(),
+        faithfulness=MockFaithfulnessPort(),
+        reranker=MockRerankerPort(),
+        evaluator=MockEvaluationPort(),
+        query_storage=MockQueryStoragePort(),
+        coordinates_storage=MockCoordinatesStoragePort(),
+        dim_reducer=MockDimensionalityReductionPort(),
+        clusterer=MockClusteringPort(),
     )
-    assert response.status_code == 200
 
-    data = response.json()
-    assert "query_id" in data
-    assert data["question"] == "What is hexagonal architecture?"
-    assert "cannot answer" in data["answer"].lower() or len(data["retrieved_chunks"]) == 0
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/query",
+            json={"question": "What is hexagonal architecture?"},
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "query_id" in data
+        assert data["question"] == "What is hexagonal architecture?"
+        assert "cannot answer" in data["answer"].lower() or len(data["retrieved_chunks"]) == 0
 
 
 @pytest.mark.asyncio

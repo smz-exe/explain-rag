@@ -36,9 +36,24 @@ from src.main import create_app
 
 
 @pytest.fixture
-def app():
-    """Create a test application instance."""
-    return create_app()
+def app(sample_chunks):
+    """Create a test application instance with mock adapters.
+
+    This fixture injects mock adapters for all external dependencies
+    to prevent real API calls and use isolated test data.
+    """
+    return create_app(
+        embedding=MockEmbeddingPort(),
+        vector_store=MockVectorStorePort(chunks=sample_chunks),
+        llm=MockLLMPort(),
+        faithfulness=MockFaithfulnessPort(),
+        reranker=MockRerankerPort(),
+        evaluator=MockEvaluationPort(),
+        query_storage=MockQueryStoragePort(),
+        coordinates_storage=MockCoordinatesStoragePort(),
+        dim_reducer=MockDimensionalityReductionPort(),
+        clusterer=MockClusteringPort(),
+    )
 
 
 @pytest.fixture
@@ -410,6 +425,49 @@ class MockCoordinatesStoragePort(CoordinatesStoragePort):
         self.computed_at = None
 
 
+class MockEvaluationPort:
+    """Mock evaluation adapter for testing."""
+
+    def __init__(
+        self,
+        faithfulness: float = 0.85,
+        answer_relevancy: float = 0.90,
+        context_precision: float = 0.80,
+        context_recall: float = 0.75,
+    ):
+        from src.domain.ports.evaluation import EvaluationMetrics
+
+        self._faithfulness = faithfulness
+        self._answer_relevancy = answer_relevancy
+        self._context_precision = context_precision
+        self._context_recall = context_recall
+        self._metrics_class = EvaluationMetrics
+        self.evaluate_calls: list[dict] = []
+
+    async def evaluate(
+        self,
+        question: str,
+        answer: str,
+        contexts: list[str],
+        ground_truth: str | None = None,
+    ):
+        """Return mock evaluation metrics."""
+        self.evaluate_calls.append(
+            {
+                "question": question,
+                "answer": answer,
+                "contexts": contexts,
+                "ground_truth": ground_truth,
+            }
+        )
+        return self._metrics_class(
+            faithfulness=self._faithfulness,
+            answer_relevancy=self._answer_relevancy,
+            context_precision=self._context_precision,
+            context_recall=self._context_recall if ground_truth else 0.0,
+        )
+
+
 # Fixtures for mock adapters
 
 
@@ -465,3 +523,9 @@ def mock_clustering() -> MockClusteringPort:
 def mock_coordinates_storage() -> MockCoordinatesStoragePort:
     """Create a mock coordinates storage adapter."""
     return MockCoordinatesStoragePort()
+
+
+@pytest.fixture
+def mock_evaluation() -> MockEvaluationPort:
+    """Create a mock evaluation adapter."""
+    return MockEvaluationPort()
