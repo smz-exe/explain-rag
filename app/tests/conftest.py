@@ -20,6 +20,8 @@ from src.domain.entities.chunk import Chunk
 from src.domain.entities.explanation import ClaimVerification, FaithfulnessResult
 from src.domain.entities.paper import Paper
 from src.domain.entities.query import Citation, GenerationResult, QueryResponse
+from src.domain.ports.clustering import ClusteringPort
+from src.domain.ports.dimensionality_reduction import DimensionalityReductionPort
 from src.domain.ports.embedding import EmbeddingPort
 from src.domain.ports.faithfulness import FaithfulnessPort
 from src.domain.ports.llm import LLMPort
@@ -167,6 +169,77 @@ class MockVectorStorePort(VectorStorePort):
         original_count = len(self.chunks)
         self.chunks = [c for c in self.chunks if c.paper_id != paper_id]
         return original_count - len(self.chunks)
+
+    async def get_paper_embeddings(self) -> list[tuple[str, list[float]]]:
+        """Return mock paper embeddings."""
+        # Group by paper_id and return mock mean embeddings
+        paper_ids = set(c.paper_id for c in self.chunks)
+        return [(pid, [0.5] * 384) for pid in paper_ids]
+
+
+class MockDimensionalityReductionPort(DimensionalityReductionPort):
+    """Mock dimensionality reduction adapter for testing."""
+
+    def __init__(self):
+        self._fitted = False
+        self._fit_transform_calls: list[list[list[float]]] = []
+        self._transform_calls: list[list[list[float]]] = []
+
+    def is_fitted(self) -> bool:
+        """Check if fitted."""
+        return self._fitted
+
+    async def fit_transform(
+        self,
+        embeddings: list[list[float]],
+        n_components: int = 3,
+    ) -> list[tuple[float, float, float]]:
+        """Return mock 3D coordinates."""
+        self._fit_transform_calls.append(embeddings)
+        self._fitted = True
+        # Return deterministic coordinates based on index
+        return [(float(i), float(i) * 0.5, float(i) * -0.5) for i in range(len(embeddings))]
+
+    async def transform(
+        self,
+        embeddings: list[list[float]],
+    ) -> list[tuple[float, float, float]]:
+        """Transform new embeddings."""
+        if not self._fitted:
+            raise RuntimeError("Not fitted")
+        self._transform_calls.append(embeddings)
+        return [(0.0, 0.0, 0.0) for _ in embeddings]
+
+
+class MockClusteringPort(ClusteringPort):
+    """Mock clustering adapter for testing."""
+
+    def __init__(self, cluster_labels: list[int] | None = None):
+        self._labels = cluster_labels
+        self._cluster_calls: list[list[list[float]]] = []
+        self._clustered = False
+
+    async def cluster(
+        self,
+        embeddings: list[list[float]],
+    ) -> list[int]:
+        """Return mock cluster labels."""
+        self._cluster_calls.append(embeddings)
+        self._clustered = True
+        if self._labels is not None:
+            return self._labels[: len(embeddings)]
+        # Default: assign to clusters 0, 1, 0, 1, ...
+        return [i % 2 for i in range(len(embeddings))]
+
+    async def get_cluster_count(self) -> int:
+        """Get cluster count."""
+        if not self._clustered:
+            raise RuntimeError("Not clustered")
+        if self._labels is not None:
+            unique = set(self._labels)
+            unique.discard(-1)
+            return len(unique)
+        return 2  # Default mock has 2 clusters
 
 
 class MockLLMPort(LLMPort):
@@ -327,3 +400,15 @@ def mock_reranker() -> MockRerankerPort:
 def mock_query_storage() -> MockQueryStoragePort:
     """Create a mock query storage adapter."""
     return MockQueryStoragePort()
+
+
+@pytest.fixture
+def mock_dim_reduction() -> MockDimensionalityReductionPort:
+    """Create a mock dimensionality reduction adapter."""
+    return MockDimensionalityReductionPort()
+
+
+@pytest.fixture
+def mock_clustering() -> MockClusteringPort:
+    """Create a mock clustering adapter."""
+    return MockClusteringPort()

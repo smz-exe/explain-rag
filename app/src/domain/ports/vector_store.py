@@ -64,3 +64,14 @@ class VectorStorePort(ABC):
             Number of chunks deleted.
         """
         ...
+
+    @abstractmethod
+    async def get_paper_embeddings(self) -> list[tuple[str, list[float]]]:
+        """Get mean embedding for each paper.
+
+        Computes the mean of all chunk embeddings for each paper.
+
+        Returns:
+            List of (paper_id, mean_embedding) tuples.
+        """
+        ...

@@ -1,6 +1,8 @@
 import asyncio
+from collections import defaultdict
 
 import chromadb
+import numpy as np
 from chromadb.config import Settings as ChromaSettings
 
 from src.domain.entities.chunk import Chunk
@@ -168,3 +170,43 @@ class ChromaVectorStore(VectorStorePort):
             await asyncio.to_thread(self.collection.delete, where={"paper_id": paper_id})
 
         return count
+
+    async def get_paper_embeddings(self) -> list[tuple[str, list[float]]]:
+        """Get mean embedding for each paper.
+
+        Computes the mean of all chunk embeddings for each paper.
+        Uses batch processing to avoid memory issues with large datasets.
+
+        Returns:
+            List of (paper_id, mean_embedding) tuples.
+        """
+        count = await asyncio.to_thread(self.collection.count)
+        if count == 0:
+            return []
+
+        # Process in batches to avoid memory exhaustion
+        batch_size = 1000
+        paper_embeddings: dict[str, list[list[float]]] = defaultdict(list)
+
+        for offset in range(0, count, batch_size):
+            batch = await asyncio.to_thread(
+                self.collection.get,
+                include=["embeddings", "metadatas"],
+                limit=batch_size,
+                offset=offset,
+            )
+
+            if not batch["embeddings"] or not batch["metadatas"]:
+                continue
+
+            for embedding, metadata in zip(
+                batch["embeddings"], batch["metadatas"], strict=True
+            ):
+                if metadata and "paper_id" in metadata:
+                    paper_embeddings[metadata["paper_id"]].append(embedding)
+
+        # Compute mean embedding for each paper
+        return [
+            (paper_id, np.mean(embeddings, axis=0).tolist())
+            for paper_id, embeddings in paper_embeddings.items()
+        ]
