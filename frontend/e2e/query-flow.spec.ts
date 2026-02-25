@@ -1,5 +1,30 @@
 import { test, expect } from "@playwright/test";
 
+// Mock data for embedding space
+const mockEmbeddingsResponse = {
+  papers: [
+    {
+      paper_id: "paper-1",
+      arxiv_id: "2301.00001",
+      title: "Attention Is All You Need",
+      coords: [0.5, 0.3, 0.2],
+      cluster_id: 0,
+      chunk_count: 15,
+    },
+  ],
+  computed_at: "2024-01-01T00:00:00Z",
+};
+
+const mockClustersResponse = {
+  clusters: [
+    {
+      id: 0,
+      label: "Transformer Models",
+      paper_ids: ["paper-1"],
+    },
+  ],
+};
+
 const mockQueryResponse = {
   query_id: "test-uuid-123",
   question: "What is attention?",
@@ -51,7 +76,27 @@ const mockQueryResponse = {
 };
 
 test.describe("Query Flow", () => {
+  // Use mobile viewport by default where only mobile layout is visible
+  test.use({ viewport: { width: 390, height: 844 } });
+
   test.beforeEach(async ({ page }) => {
+    // Mock embedding space APIs
+    await page.route("**/papers/embeddings", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(mockEmbeddingsResponse),
+      });
+    });
+
+    await page.route("**/papers/clusters", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(mockClustersResponse),
+      });
+    });
+
     // Mock the query API
     await page.route("**/query", async (route) => {
       await route.fulfill({
@@ -65,31 +110,35 @@ test.describe("Query Flow", () => {
   test("should submit query and display results", async ({ page }) => {
     await page.goto("/");
 
-    // Fill in question
-    await page.getByRole("textbox").fill("What is attention?");
+    // Fill in question (use first() as both layouts are in DOM)
+    await page.getByRole("textbox").first().fill("What is attention?");
 
     // Submit
-    await page.getByRole("button", { name: /ask/i }).click();
+    await page.getByRole("button", { name: /ask/i }).first().click();
 
-    // Wait for results - use exact match to avoid matching answer text
+    // Wait for results - use exact match and first()
+    await expect(page.getByText("Answer", { exact: true }).first()).toBeVisible(
+      {
+        timeout: 10000,
+      }
+    );
     await expect(
-      page.getByText("Answer", { exact: true })
-    ).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(/Attention is a mechanism/)).toBeVisible();
+      page.getByText(/Attention is a mechanism/).first()
+    ).toBeVisible();
 
     // Check chunks panel
-    await expect(page.getByText(/Retrieved Chunks/)).toBeVisible();
+    await expect(page.getByText(/Retrieved Chunks/).first()).toBeVisible();
     // Use first() since multiple chunks have the same paper title
     await expect(
       page.getByText(/Attention Is All You Need/).first()
     ).toBeVisible();
 
     // Check faithfulness report
-    await expect(page.getByText(/Faithfulness Report/)).toBeVisible();
-    await expect(page.getByText(/90%/)).toBeVisible();
+    await expect(page.getByText(/Faithfulness Report/).first()).toBeVisible();
+    await expect(page.getByText(/90%/).first()).toBeVisible();
 
     // Check timing
-    await expect(page.getByText(/Timing/)).toBeVisible();
+    await expect(page.getByText(/Timing/).first()).toBeVisible();
   });
 
   test("should show loading state during query", async ({ page }) => {
@@ -104,46 +153,50 @@ test.describe("Query Flow", () => {
     });
 
     await page.goto("/");
-    await page.getByRole("textbox").fill("Test question");
-    await page.getByRole("button", { name: /ask/i }).click();
+    await page.getByRole("textbox").first().fill("Test question");
+    await page.getByRole("button", { name: /ask/i }).first().click();
 
     // Check loading state - button should show querying and be disabled
-    await expect(page.getByText(/Querying/i)).toBeVisible({ timeout: 1000 });
+    await expect(page.getByText(/Querying/i).first()).toBeVisible({
+      timeout: 1000,
+    });
   });
 
   test("should expand chunks when clicked", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("textbox").fill("What is attention?");
-    await page.getByRole("button", { name: /ask/i }).click();
+    await page.getByRole("textbox").first().fill("What is attention?");
+    await page.getByRole("button", { name: /ask/i }).first().click();
 
-    await expect(page.getByText(/Retrieved Chunks/)).toBeVisible({
+    await expect(page.getByText(/Retrieved Chunks/).first()).toBeVisible({
       timeout: 10000,
     });
 
     // Click to expand first chunk
-    await page.getByText("#1").click();
+    await page.getByText("#1").first().click();
 
     // Check content is visible
     await expect(
-      page.getByText(/The attention mechanism allows/)
+      page.getByText(/The attention mechanism allows/).first()
     ).toBeVisible();
   });
 
   test("should highlight chunk when citation clicked", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("textbox").fill("What is attention?");
-    await page.getByRole("button", { name: /ask/i }).click();
+    await page.getByRole("textbox").first().fill("What is attention?");
+    await page.getByRole("button", { name: /ask/i }).first().click();
 
-    await expect(
-      page.getByText("Answer", { exact: true })
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Answer", { exact: true }).first()).toBeVisible(
+      {
+        timeout: 10000,
+      }
+    );
 
     // Find and click the [1] citation badge (it's a Badge component with text [1])
-    const citationBadge = page.getByText("[1]", { exact: true });
+    const citationBadge = page.getByText("[1]", { exact: true }).first();
     await citationBadge.click();
 
     // The chunk should be highlighted (has border-primary class)
-    const chunk = page.locator('[id="chunk-chunk-1"]');
+    const chunk = page.locator('[id="chunk-chunk-1"]').first();
     await expect(chunk).toHaveClass(/border-primary/);
   });
 });

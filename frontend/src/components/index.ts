@@ -1,4 +1,5 @@
 export { QueryInput } from "./QueryInput";
+export type { QueryInputHandle } from "./QueryInput";
 export { AnswerDisplay } from "./AnswerDisplay";
 export { ChunksPanel } from "./ChunksPanel";
 export { FaithfulnessReport } from "./FaithfulnessReport";
@@ -11,3 +12,12 @@ export {
   FaithfulnessSkeleton,
   TimingSkeleton,
 } from "./skeletons";
+
+// Research Atlas components
+export {
+  ResearchLayout,
+  PapersPanel,
+  QueryPanel,
+  EmbeddingSpace,
+} from "./research";
+export type { Paper, Cluster, QueryCoords } from "./research";

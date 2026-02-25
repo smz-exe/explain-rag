@@ -45,41 +45,76 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* Research Atlas tokens for Tailwind */
+  --color-atlas-surface: var(--atlas-surface);
+  --color-atlas-background: var(--atlas-background);
+  --color-atlas-text-primary: var(--atlas-text-primary);
+  --color-atlas-text-secondary: var(--atlas-text-secondary);
+  --color-atlas-border: var(--atlas-border);
+  --color-atlas-accent: var(--atlas-accent);
+  --color-atlas-cluster-1: var(--atlas-cluster-1);
+  --color-atlas-cluster-2: var(--atlas-cluster-2);
+  --color-atlas-cluster-3: var(--atlas-cluster-3);
+  --color-atlas-cluster-4: var(--atlas-cluster-4);
+  --color-atlas-cluster-5: var(--atlas-cluster-5);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+
+  /* Research Atlas Monochrome Palette */
+  /* Background: #FAFAFA, Surface: #FFFFFF, Text: #1A1A1A/#666666, Border: #E5E5E5, Accent: #000000 */
+  --background: oklch(0.98 0 0);           /* #FAFAFA - page background */
+  --foreground: oklch(0.15 0 0);           /* #1A1A1A - primary text */
+  --card: oklch(1 0 0);                    /* #FFFFFF - surface/card */
+  --card-foreground: oklch(0.15 0 0);      /* #1A1A1A */
+  --popover: oklch(1 0 0);                 /* #FFFFFF */
+  --popover-foreground: oklch(0.15 0 0);   /* #1A1A1A */
+  --primary: oklch(0 0 0);                 /* #000000 - accent/primary actions */
+  --primary-foreground: oklch(1 0 0);      /* #FFFFFF */
+  --secondary: oklch(0.98 0 0);            /* #FAFAFA */
+  --secondary-foreground: oklch(0.15 0 0); /* #1A1A1A */
+  --muted: oklch(0.98 0 0);                /* #FAFAFA */
+  --muted-foreground: oklch(0.48 0 0);     /* #666666 - secondary text */
+  --accent: oklch(0.98 0 0);               /* #FAFAFA */
+  --accent-foreground: oklch(0.15 0 0);    /* #1A1A1A */
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: oklch(0.91 0 0);               /* #E5E5E5 */
+  --input: oklch(0.91 0 0);                /* #E5E5E5 */
+  --ring: oklch(0.48 0 0);                 /* #666666 */
+
+  /* Chart colors - grayscale for Research Atlas */
+  --chart-1: oklch(0.15 0 0);              /* #1A1A1A */
+  --chart-2: oklch(0.35 0 0);              /* ~#4D4D4D */
+  --chart-3: oklch(0.48 0 0);              /* #666666 */
+  --chart-4: oklch(0.65 0 0);              /* ~#999999 */
+  --chart-5: oklch(0.8 0 0);               /* ~#CCCCCC */
+
+  /* Sidebar */
+  --sidebar: oklch(1 0 0);                 /* #FFFFFF */
+  --sidebar-foreground: oklch(0.15 0 0);   /* #1A1A1A */
+  --sidebar-primary: oklch(0 0 0);         /* #000000 */
+  --sidebar-primary-foreground: oklch(1 0 0); /* #FFFFFF */
+  --sidebar-accent: oklch(0.98 0 0);       /* #FAFAFA */
+  --sidebar-accent-foreground: oklch(0.15 0 0); /* #1A1A1A */
+  --sidebar-border: oklch(0.91 0 0);       /* #E5E5E5 */
+  --sidebar-ring: oklch(0.48 0 0);         /* #666666 */
+
+  /* Research Atlas specific tokens */
+  --atlas-surface: oklch(1 0 0);           /* #FFFFFF - cards, panels */
+  --atlas-background: oklch(0.98 0 0);     /* #FAFAFA - page bg */
+  --atlas-text-primary: oklch(0.15 0 0);   /* #1A1A1A */
+  --atlas-text-secondary: oklch(0.48 0 0); /* #666666 */
+  --atlas-border: oklch(0.91 0 0);         /* #E5E5E5 */
+  --atlas-accent: oklch(0 0 0);            /* #000000 */
+
+  /* 3D visualization cluster shades (5 grayscale levels) */
+  --atlas-cluster-1: oklch(0.25 0 0);
+  --atlas-cluster-2: oklch(0.40 0 0);
+  --atlas-cluster-3: oklch(0.55 0 0);
+  --atlas-cluster-4: oklch(0.70 0 0);
+  --atlas-cluster-5: oklch(0.85 0 0);
 }
 
 .dark {
