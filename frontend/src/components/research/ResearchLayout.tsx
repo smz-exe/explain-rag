@@ -40,39 +40,42 @@ export function ResearchLayout({
       </div>
 
       {/* Desktop layout: split panels with optional center visualization */}
+      {/* min-h-0 on grid items prevents content from expanding grid cells beyond h-screen */}
       <div className="hidden h-screen lg:grid lg:grid-cols-[320px_1fr_400px]">
         {/* Left panel: Papers */}
-        <aside className="border-atlas-border bg-atlas-surface flex flex-col border-r">
-          <div className="border-atlas-border border-b px-4 py-3">
+        <aside className="border-atlas-border bg-atlas-surface flex min-h-0 flex-col border-r">
+          <div className="border-atlas-border shrink-0 border-b px-4 py-3">
             <h2 className="text-atlas-text-primary text-sm font-semibold tracking-wide uppercase">
               Papers
             </h2>
           </div>
-          <div className="flex-1 overflow-y-auto">{papersPanel}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto">{papersPanel}</div>
         </aside>
 
         {/* Center: 3D Visualization (or empty state) */}
-        <main className="bg-atlas-background relative flex items-center justify-center">
+        <main className="bg-atlas-background relative min-h-0 overflow-hidden">
           {visualization ? (
-            visualization
+            <div className="absolute inset-0">{visualization}</div>
           ) : (
-            <div className="text-atlas-text-secondary text-center">
-              <p className="text-sm">3D visualization will appear here</p>
-              <p className="text-xs opacity-60">
-                once papers are added to the collection
-              </p>
+            <div className="text-atlas-text-secondary flex h-full items-center justify-center text-center">
+              <div>
+                <p className="text-sm">3D visualization will appear here</p>
+                <p className="text-xs opacity-60">
+                  once papers are added to the collection
+                </p>
+              </div>
             </div>
           )}
         </main>
 
         {/* Right panel: Query */}
-        <aside className="border-atlas-border bg-atlas-surface flex flex-col border-l">
-          <div className="border-atlas-border border-b px-4 py-3">
+        <aside className="border-atlas-border bg-atlas-surface flex min-h-0 flex-col border-l">
+          <div className="border-atlas-border shrink-0 border-b px-4 py-3">
             <h2 className="text-atlas-text-primary text-sm font-semibold tracking-wide uppercase">
               Query
             </h2>
           </div>
-          <div className="flex-1 overflow-y-auto">{queryPanel}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto">{queryPanel}</div>
         </aside>
       </div>
     </div>

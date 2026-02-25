@@ -103,19 +103,19 @@ export function ChunksPanel({ chunks, highlightedChunkId }: ChunksPanelProps) {
                   : ""
               }`}
             >
-              <CollapsibleTrigger className="flex w-full flex-col gap-2 text-left sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2">
+              <CollapsibleTrigger className="flex w-full flex-col gap-2 text-left">
+                <div className="flex items-start gap-2">
                   {openChunks.has(chunk.chunk_id) ? (
-                    <ChevronDown className="h-4 w-4 shrink-0" />
+                    <ChevronDown className="mt-0.5 h-4 w-4 shrink-0" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 shrink-0" />
+                    <ChevronRight className="mt-0.5 h-4 w-4 shrink-0" />
                   )}
-                  <span className="font-medium">#{chunk.rank}</span>
-                  <span className="text-muted-foreground max-w-30 truncate text-sm sm:max-w-50 lg:max-w-75">
+                  <span className="shrink-0 font-medium">#{chunk.rank}</span>
+                  <span className="text-muted-foreground text-sm wrap-break-word">
                     {chunk.paper_title}
                   </span>
                 </div>
-                <div className="ml-6 flex flex-wrap items-center gap-1 sm:ml-0 sm:gap-2">
+                <div className="ml-6 flex flex-wrap items-center gap-1.5">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Badge variant="outline" className="cursor-help">
