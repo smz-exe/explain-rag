@@ -1,3 +1,5 @@
+from .clustering import ClusteringPort
+from .dimensionality_reduction import DimensionalityReductionPort
 from .embedding import EmbeddingPort
 from .evaluation import EvaluationError, EvaluationMetrics, EvaluationPort, EvaluationResult
 from .faithfulness import FaithfulnessPort, FaithfulnessVerificationError
@@ -9,6 +11,8 @@ from .user_storage import User, UserStoragePort
 from .vector_store import VectorStorePort
 
 __all__ = [
+    "ClusteringPort",
+    "DimensionalityReductionPort",
     "EmbeddingPort",
     "EvaluationError",
     "EvaluationMetrics",

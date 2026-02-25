@@ -1,4 +1,5 @@
 from .chunk import Chunk
+from .coordinates import Cluster, PaperCoordinates
 from .explanation import ClaimVerification, ExplanationTrace, FaithfulnessResult
 from .paper import Paper
 from .query import (
@@ -20,4 +21,6 @@ __all__ = [
     "FaithfulnessResult",
     "ClaimVerification",
     "ExplanationTrace",
+    "PaperCoordinates",
+    "Cluster",
 ]
