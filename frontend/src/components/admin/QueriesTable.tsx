@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListQueriesQueryListGet } from "@/api/queries/query/query";
+import { EvaluateButton } from "./EvaluateButton";
 
 export function QueriesTable() {
   const { data, isLoading, error } = useListQueriesQueryListGet({ limit: 10 });
@@ -82,6 +83,7 @@ export function QueriesTable() {
               <TableRow>
                 <TableHead>Question</TableHead>
                 <TableHead className="w-32">Time</TableHead>
+                <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -97,6 +99,9 @@ export function QueriesTable() {
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {formatDate(query.created_at)}
+                  </TableCell>
+                  <TableCell>
+                    <EvaluateButton queryId={query.query_id} />
                   </TableCell>
                 </TableRow>
               ))}

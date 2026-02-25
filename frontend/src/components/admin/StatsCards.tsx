@@ -34,7 +34,8 @@ export function StatsCards() {
     );
   }
 
-  const stats = data?.data;
+  // Type narrowing: only access stats when response is successful (status 200)
+  const stats = data?.status === 200 ? data.data : null;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

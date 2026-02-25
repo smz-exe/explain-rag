@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-4-5-20250929"
     claude_max_tokens: int = 4096
+    claude_timeout: float = 120.0  # Timeout in seconds for Claude API calls
+    claude_max_retries: int = 2  # Max retries for transient failures
 
     # Embedding Configuration
     embedding_provider: str = "local"

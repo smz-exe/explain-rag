@@ -6,13 +6,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.adapters.inbound.http import auth, health, ingest, papers, query, stats
+from src.adapters.inbound.http import auth, evaluation, health, ingest, papers, query, stats
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
 from src.adapters.outbound.chroma_store import ChromaVectorStore
 from src.adapters.outbound.cross_encoder_reranker import CrossEncoderReranker
 from src.adapters.outbound.env_user_storage import EnvUserStorage
 from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
 from src.adapters.outbound.langchain_rag import LangChainRAG
+from src.adapters.outbound.ragas_evaluator import RAGASEvaluator
 from src.adapters.outbound.sqlite_query_storage import SQLiteQueryStorage
 from src.adapters.outbound.st_embedding import SentenceTransformerEmbedding
 from src.application.ingestion_service import IngestionService
@@ -75,6 +76,16 @@ def create_app() -> FastAPI:
     user_storage = EnvUserStorage(
         admin_username=settings.admin_username,
         admin_password_hash=settings.admin_password_hash,
+    )
+
+    logger.info("Initializing RAGAS evaluator")
+    evaluator = RAGASEvaluator(
+        model=settings.claude_model,
+        api_key=settings.anthropic_api_key,
+        embedding_model=settings.embedding_model,
+        max_tokens=settings.claude_max_tokens,
+        timeout=settings.claude_timeout,
+        max_retries=settings.claude_max_retries,
     )
 
     # Preload models at startup to avoid cold start on first query
@@ -140,10 +151,11 @@ def create_app() -> FastAPI:
     # Mount routers
     app.include_router(auth.create_router(user_storage, settings))
     app.include_router(ingest.create_router(ingestion_service))
-    app.include_router(papers.create_router(vector_store))
+    app.include_router(papers.create_router(vector_store, paper_source))
     app.include_router(health.create_router(vector_store))
     app.include_router(query.create_router(query_service))
     app.include_router(stats.create_router(vector_store, query_storage))
+    app.include_router(evaluation.create_router(evaluator, query_storage))
 
     @app.get("/")
     async def root():
