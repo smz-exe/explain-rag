@@ -131,7 +131,11 @@ export const QueryPanel = forwardRef<QueryInputHandle, QueryPanelProps>(
               Your answer will appear here with citations and analysis
             </p>
             <p className="mt-4 text-xs opacity-40">
-              Press <kbd className="bg-atlas-background rounded px-1 py-0.5 font-mono">/</kbd> to focus search
+              Press{" "}
+              <kbd className="bg-atlas-background rounded px-1 py-0.5 font-mono">
+                /
+              </kbd>{" "}
+              to focus search
             </p>
           </div>
         )}

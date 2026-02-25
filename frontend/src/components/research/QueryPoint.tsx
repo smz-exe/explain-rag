@@ -30,7 +30,8 @@ export function QueryPoint({ coords }: QueryPointProps) {
     meshRef.current.scale.setScalar(pulse);
 
     // Emissive pulse
-    materialRef.current.emissiveIntensity = 0.3 + Math.sin(state.clock.elapsedTime * 3) * 0.2;
+    materialRef.current.emissiveIntensity =
+      0.3 + Math.sin(state.clock.elapsedTime * 3) * 0.2;
   });
 
   const color = hexToThreeColor(visualization.queryPoint.color);
@@ -55,7 +56,7 @@ export function QueryPoint({ coords }: QueryPointProps) {
         center
         style={{ pointerEvents: "none" }}
       >
-        <div className="whitespace-nowrap rounded bg-black px-2 py-1 text-xs font-medium text-white shadow-lg">
+        <div className="rounded bg-black px-2 py-1 text-xs font-medium whitespace-nowrap text-white shadow-lg">
           Query
         </div>
       </Html>

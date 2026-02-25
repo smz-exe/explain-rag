@@ -30,15 +30,17 @@ export function ConnectionLines({
       const coords = paperCoordsMap.get(paperId);
       if (!coords) return [];
 
-      return [{
-        paperId,
-        points: [queryCoords, coords] as [
-          [number, number, number],
-          [number, number, number]
-        ],
-        // Fade opacity based on rank (first result = most opaque)
-        opacity: Math.max(0.2, 1 - index * 0.1),
-      }];
+      return [
+        {
+          paperId,
+          points: [queryCoords, coords] as [
+            [number, number, number],
+            [number, number, number],
+          ],
+          // Fade opacity based on rank (first result = most opaque)
+          opacity: Math.max(0.2, 1 - index * 0.1),
+        },
+      ];
     });
   }, [queryCoords, paperCoordsMap, connectedPaperIds]);
 
