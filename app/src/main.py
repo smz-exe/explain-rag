@@ -33,8 +33,9 @@ def create_app() -> FastAPI:
     settings = Settings()
 
     # Set HF_TOKEN for HuggingFace libraries (they read from os.environ)
-    if settings.hf_token:
-        os.environ["HF_TOKEN"] = settings.hf_token
+    hf_token = settings.hf_token.get_secret_value()
+    if hf_token:
+        os.environ["HF_TOKEN"] = hf_token
 
     # Initialize outbound adapters
     logger.info(f"Initializing embedding adapter: {settings.embedding_model}")
@@ -50,17 +51,18 @@ def create_app() -> FastAPI:
     paper_source = ArxivPaperSource()
 
     # Initialize LLM adapters
+    api_key = settings.anthropic_api_key.get_secret_value()
     logger.info(f"Initializing LLM adapter: {settings.claude_model}")
     llm = LangChainRAG(
         model=settings.claude_model,
-        api_key=settings.anthropic_api_key,
+        api_key=api_key,
         max_tokens=settings.claude_max_tokens,
     )
 
     logger.info("Initializing faithfulness adapter")
     faithfulness = LangChainFaithfulness(
         model=settings.claude_model,
-        api_key=settings.anthropic_api_key,
+        api_key=api_key,
     )
 
     logger.info(f"Initializing reranker: {settings.reranker_model}")
@@ -75,13 +77,13 @@ def create_app() -> FastAPI:
     logger.info("Initializing user storage for auth")
     user_storage = EnvUserStorage(
         admin_username=settings.admin_username,
-        admin_password_hash=settings.admin_password_hash,
+        admin_password_hash=settings.admin_password_hash.get_secret_value(),
     )
 
     logger.info("Initializing RAGAS evaluator")
     evaluator = RAGASEvaluator(
         model=settings.claude_model,
-        api_key=settings.anthropic_api_key,
+        api_key=api_key,
         embedding_model=settings.embedding_model,
         max_tokens=settings.claude_max_tokens,
         timeout=settings.claude_timeout,

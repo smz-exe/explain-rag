@@ -1,4 +1,6 @@
-from pydantic import model_validator
+from typing import Literal
+
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,7 +14,7 @@ class Settings(BaseSettings):
     )
 
     # LLM Configuration
-    anthropic_api_key: str = ""
+    anthropic_api_key: SecretStr = SecretStr("")
     claude_model: str = "claude-sonnet-4-5-20250929"
     claude_max_tokens: int = 4096
     claude_timeout: float = 120.0  # Timeout in seconds for Claude API calls
@@ -21,7 +23,7 @@ class Settings(BaseSettings):
     # Embedding Configuration
     embedding_provider: str = "local"
     embedding_model: str = "all-MiniLM-L6-v2"
-    openai_api_key: str = ""
+    openai_api_key: SecretStr = SecretStr("")
 
     # Retrieval Configuration
     chunk_size: int = 1000
@@ -36,22 +38,20 @@ class Settings(BaseSettings):
     # Model Loading Configuration
     preload_models: bool = True  # Preload models at startup to avoid cold start
     hf_offline_mode: bool = False  # Use only locally cached HuggingFace models
-    hf_token: str = ""  # HuggingFace token for higher rate limits and faster downloads
+    hf_token: SecretStr = SecretStr("")  # HuggingFace token for higher rate limits
 
     # Server Configuration
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     cors_origins: list[str] = ["http://localhost:3000"]
-    environment: str = "development"  # "development" or "production"
+    environment: Literal["development", "production"] = "development"
 
     # Auth Configuration
-    jwt_secret_key: str = (
-        ""  # REQUIRED - generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
-    )
+    jwt_secret_key: SecretStr = SecretStr("")
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
     admin_username: str = "admin"
-    admin_password_hash: str = ""  # bcrypt hash
+    admin_password_hash: SecretStr = SecretStr("")  # bcrypt hash
 
     @property
     def secure_cookies(self) -> bool:
@@ -59,11 +59,28 @@ class Settings(BaseSettings):
         return self.environment == "production"
 
     @model_validator(mode="after")
-    def validate_jwt_secret(self) -> "Settings":
-        """Ensure JWT secret is configured with sufficient entropy."""
-        if not self.jwt_secret_key or len(self.jwt_secret_key) < 32:
+    def validate_required_secrets(self) -> "Settings":
+        """Validate required secrets are configured properly."""
+        # Validate JWT secret
+        jwt_value = self.jwt_secret_key.get_secret_value()
+        if not jwt_value or len(jwt_value) < 32:
             raise ValueError(
                 "JWT_SECRET_KEY must be set and at least 32 characters. "
                 'Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
             )
+
+        # Validate Anthropic API key
+        if not self.anthropic_api_key.get_secret_value():
+            raise ValueError(
+                "ANTHROPIC_API_KEY is required. "
+                "Get your API key from https://console.anthropic.com/"
+            )
+
+        # Validate admin password hash
+        if not self.admin_password_hash.get_secret_value():
+            raise ValueError(
+                "ADMIN_PASSWORD_HASH is required. "
+                'Generate with: python -c "import bcrypt; print(bcrypt.hashpw(b\'password\', bcrypt.gensalt(12)).decode())"'
+            )
+
         return self

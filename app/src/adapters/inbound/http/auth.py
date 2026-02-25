@@ -57,7 +57,7 @@ async def require_admin(access_token: str | None = Cookie(default=None)) -> User
     try:
         payload = jwt.decode(
             access_token,
-            _settings.jwt_secret_key,
+            _settings.jwt_secret_key.get_secret_value(),
             algorithms=[_settings.jwt_algorithm],
         )
         username = payload.get("sub")
@@ -113,7 +113,7 @@ def create_router(user_storage: UserStoragePort, settings: Settings) -> APIRoute
         }
         token = jwt.encode(
             token_data,
-            settings.jwt_secret_key,
+            settings.jwt_secret_key.get_secret_value(),
             algorithm=settings.jwt_algorithm,
         )
 
@@ -146,7 +146,7 @@ def create_router(user_storage: UserStoragePort, settings: Settings) -> APIRoute
         try:
             payload = jwt.decode(
                 access_token,
-                settings.jwt_secret_key,
+                settings.jwt_secret_key.get_secret_value(),
                 algorithms=[settings.jwt_algorithm],
             )
             username = payload.get("sub")

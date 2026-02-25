@@ -3,13 +3,15 @@
 import os
 
 # Set required environment variables before importing app
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-only")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-only-min-32-chars")
 os.environ.setdefault("ADMIN_USERNAME", "admin")
 # bcrypt hash for "testpassword"
 os.environ.setdefault(
     "ADMIN_PASSWORD_HASH",
     "$2b$12$u9la33VyaVebIX4B9Y6w1.J1YQd/UzQalxP4q17qqT8apDiKTCg3e",
 )
+# Test API key (not a real key, just for validation)
+os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-key-for-testing-only")
 
 import pytest
 from httpx import ASGITransport, AsyncClient
