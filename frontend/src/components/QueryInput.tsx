@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,7 +30,10 @@ export interface QueryInputHandle {
 }
 
 export const QueryInput = forwardRef<QueryInputHandle, QueryInputProps>(
-  function QueryInput({ onSubmit, isLoading = false, defaultQuestion = "" }, ref) {
+  function QueryInput(
+    { onSubmit, isLoading = false, defaultQuestion = "" },
+    ref
+  ) {
     const [question, setQuestion] = useState(defaultQuestion);
     const [topK, setTopK] = useState(10);
     const [enableReranking, setEnableReranking] = useState(false);
@@ -67,6 +76,7 @@ export const QueryInput = forwardRef<QueryInputHandle, QueryInputProps>(
           <Textarea
             ref={textareaRef}
             id="question"
+            name="question"
             placeholder="Ask a question about the ingested papers..."
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
@@ -77,9 +87,10 @@ export const QueryInput = forwardRef<QueryInputHandle, QueryInputProps>(
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-xs flex-1 space-y-2">
-            <Label htmlFor="top-k">Top K: {topK}</Label>
+            <Label id="top-k-label">Top K: {topK}</Label>
             <Slider
-              id="top-k"
+              aria-labelledby="top-k-label"
+              name="top-k"
               min={1}
               max={50}
               step={1}
@@ -92,11 +103,13 @@ export const QueryInput = forwardRef<QueryInputHandle, QueryInputProps>(
           <div className="flex items-center gap-2">
             <Switch
               id="reranking"
+              name="reranking"
               checked={enableReranking}
               onCheckedChange={setEnableReranking}
               disabled={isLoading}
+              aria-labelledby="reranking-label"
             />
-            <Label htmlFor="reranking">Enable Reranking</Label>
+            <Label id="reranking-label">Enable Reranking</Label>
           </div>
 
           <Button

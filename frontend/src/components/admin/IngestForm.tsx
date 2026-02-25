@@ -148,6 +148,7 @@ export function IngestForm() {
                 <Label htmlFor="arxiv-id">arXiv ID</Label>
                 <Input
                   id="arxiv-id"
+                  name="arxiv-id"
                   placeholder="e.g., 1706.03762"
                   value={arxivId}
                   onChange={(e) => setArxivId(e.target.value)}
@@ -191,6 +192,8 @@ export function IngestForm() {
             <div className="space-y-4">
               <div className="flex gap-2">
                 <Input
+                  id="arxiv-search"
+                  name="arxiv-search"
                   placeholder="Search arXiv (e.g., transformer attention)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -232,12 +235,14 @@ export function IngestForm() {
                       <Checkbox
                         id={paper.arxiv_id}
                         checked={selectedPapers.includes(paper.arxiv_id)}
-                        onCheckedChange={() => handleTogglePaper(paper.arxiv_id)}
+                        onCheckedChange={() =>
+                          handleTogglePaper(paper.arxiv_id)
+                        }
                       />
                       <div className="flex-1 space-y-1">
                         <label
                           htmlFor={paper.arxiv_id}
-                          className="cursor-pointer text-sm font-medium leading-none"
+                          className="cursor-pointer text-sm leading-none font-medium"
                         >
                           {paper.title}
                         </label>

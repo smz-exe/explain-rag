@@ -4,6 +4,7 @@ import { StatsCards } from "@/components/admin/StatsCards";
 import { PapersTable } from "@/components/admin/PapersTable";
 import { QueriesTable } from "@/components/admin/QueriesTable";
 import { IngestForm } from "@/components/admin/IngestForm";
+import { RecomputeButton } from "@/components/admin/RecomputeButton";
 
 export default function AdminPage() {
   return (
@@ -14,9 +15,10 @@ export default function AdminPage() {
         {/* System Metrics */}
         <StatsCards />
 
-        {/* Ingest Form */}
-        <div className="max-w-md">
+        {/* Ingest Form and Recompute Button */}
+        <div className="grid gap-6 md:grid-cols-2">
           <IngestForm />
+          <RecomputeButton />
         </div>
 
         {/* Papers and Queries Tables */}
