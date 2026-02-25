@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useState,
-  useEffect,
-  useRef,
-  useImperativeHandle,
-  forwardRef,
-} from "react";
+import { useState, useRef, useImperativeHandle, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,7 +31,16 @@ export const QueryInput = forwardRef<QueryInputHandle, QueryInputProps>(
     const [question, setQuestion] = useState(defaultQuestion);
     const [topK, setTopK] = useState(10);
     const [enableReranking, setEnableReranking] = useState(false);
+    const [prevDefaultQuestion, setPrevDefaultQuestion] =
+      useState(defaultQuestion);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Sync with defaultQuestion prop changes (React-recommended pattern)
+    // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+    if (defaultQuestion && defaultQuestion !== prevDefaultQuestion) {
+      setPrevDefaultQuestion(defaultQuestion);
+      setQuestion(defaultQuestion);
+    }
 
     // Expose focus method to parent
     useImperativeHandle(ref, () => ({
@@ -45,13 +48,6 @@ export const QueryInput = forwardRef<QueryInputHandle, QueryInputProps>(
         textareaRef.current?.focus();
       },
     }));
-
-    // Sync with defaultQuestion prop changes
-    useEffect(() => {
-      if (defaultQuestion) {
-        setQuestion(defaultQuestion);
-      }
-    }, [defaultQuestion]);
 
     const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
       e.preventDefault();

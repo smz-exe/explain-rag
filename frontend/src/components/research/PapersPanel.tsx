@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,14 +52,22 @@ export function PapersPanel({
   isLoading,
   className,
 }: PapersPanelProps) {
-  const [expandedClusters, setExpandedClusters] = useState<Set<number>>(
-    new Set()
+  // Create a stable key from cluster IDs to detect when clusters change
+  const clusterKey = useMemo(
+    () => clusters.map((c) => c.id).join(","),
+    [clusters]
   );
 
-  // Sync expanded clusters when clusters prop changes
-  useEffect(() => {
+  const [expandedClusters, setExpandedClusters] = useState<Set<number>>(
+    () => new Set(clusters.map((c) => c.id))
+  );
+  const [prevClusterKey, setPrevClusterKey] = useState(clusterKey);
+
+  // Sync expanded clusters when clusters prop changes (React-recommended pattern)
+  if (clusterKey !== prevClusterKey) {
+    setPrevClusterKey(clusterKey);
     setExpandedClusters(new Set(clusters.map((c) => c.id)));
-  }, [clusters]);
+  }
 
   const toggleCluster = (clusterId: number) => {
     setExpandedClusters((prev) => {

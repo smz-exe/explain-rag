@@ -5,7 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import {
-  getClusterColor,
+  getClusterAppearance,
   hexToThreeColor,
   visualization,
 } from "@/lib/design-tokens";
@@ -87,10 +87,14 @@ const PaperPoint = memo(function PaperPoint({
     [size]
   );
 
-  // Get cluster color
-  const baseColor = useMemo(
-    () => hexToThreeColor(getClusterColor(paper.cluster_id)),
+  // Get cluster appearance (color + material properties)
+  const appearance = useMemo(
+    () => getClusterAppearance(paper.cluster_id),
     [paper.cluster_id]
+  );
+  const baseColor = useMemo(
+    () => hexToThreeColor(appearance.color),
+    [appearance.color]
   );
 
   // Cleanup cursor on unmount - always reset regardless of hover state
@@ -137,8 +141,8 @@ const PaperPoint = memo(function PaperPoint({
         color={baseColor}
         emissive={isHighlighted ? baseColor : 0x000000}
         emissiveIntensity={isHighlighted ? 0.3 : 0}
-        roughness={0.5}
-        metalness={0.1}
+        roughness={appearance.material.roughness}
+        metalness={appearance.material.metalness}
       />
 
       {/* Tooltip on hover */}
@@ -149,7 +153,7 @@ const PaperPoint = memo(function PaperPoint({
           style={{ pointerEvents: "none" }}
         >
           <div className="rounded bg-black/80 px-2 py-1 text-xs whitespace-nowrap text-white shadow-lg">
-            <p className="max-w-[200px] truncate font-medium">{paper.title}</p>
+            <p className="max-w-50 truncate font-medium">{paper.title}</p>
             <p className="text-white/70">
               {paper.arxiv_id} · {paper.chunk_count} chunks
             </p>

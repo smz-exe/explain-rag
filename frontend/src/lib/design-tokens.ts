@@ -38,28 +38,78 @@ export const colors = {
 
 /**
  * Cluster colors for 3D visualization
- * Grayscale shades to differentiate paper clusters
+ * Cool/warm gray split for sophisticated distinction
  */
 export const clusterColors = {
-  cluster1: "#333333",
-  cluster2: "#555555",
-  cluster3: "#777777",
-  cluster4: "#999999",
-  cluster5: "#BBBBBB",
+  // Cool grays (blue undertone) - Tailwind Slate
+  coolDark: "#1E293B",
+  coolMedium: "#475569",
+  coolLight: "#94A3B8",
+
+  // Warm grays (brown undertone) - Tailwind Stone
+  warmDark: "#292524",
+  warmMedium: "#57534E",
+  warmLight: "#A8A29E",
+
   /** Unclustered/noise points */
-  noise: "#DDDDDD",
+  noise: "#D4D4D4",
 } as const;
 
 /**
- * Get cluster color by index (cycles through available colors)
+ * Material presets for 3D spheres
+ * Varying roughness and metalness creates visual distinction
+ */
+export const clusterMaterials = {
+  matte: { roughness: 0.9, metalness: 0.0 },
+  glossy: { roughness: 0.2, metalness: 0.1 },
+  metallic: { roughness: 0.35, metalness: 0.7 },
+} as const;
+
+export type ClusterMaterial = keyof typeof clusterMaterials;
+
+/**
+ * Combined cluster appearance (color + material)
+ */
+export interface ClusterAppearance {
+  color: string;
+  material: { roughness: number; metalness: number };
+}
+
+/**
+ * Ordered cluster appearances for maximum visual distinction
+ * Combines cool/warm colors with matte/glossy/metallic materials
+ */
+const clusterAppearances: ClusterAppearance[] = [
+  // Cluster 0: Cool dark + matte (charcoal stone)
+  { color: clusterColors.coolDark, material: clusterMaterials.matte },
+  // Cluster 1: Warm medium + glossy (polished clay)
+  { color: clusterColors.warmMedium, material: clusterMaterials.glossy },
+  // Cluster 2: Cool light + metallic (brushed steel)
+  { color: clusterColors.coolLight, material: clusterMaterials.metallic },
+  // Cluster 3: Warm dark + glossy (polished obsidian)
+  { color: clusterColors.warmDark, material: clusterMaterials.glossy },
+  // Cluster 4: Cool medium + metallic (gunmetal)
+  { color: clusterColors.coolMedium, material: clusterMaterials.metallic },
+  // Cluster 5: Warm light + matte (sandstone)
+  { color: clusterColors.warmLight, material: clusterMaterials.matte },
+];
+
+/**
+ * Get cluster appearance (color + material) by index
+ * Cycles through 6 distinct combinations
+ */
+export function getClusterAppearance(clusterId: number): ClusterAppearance {
+  if (clusterId < 0) {
+    return { color: clusterColors.noise, material: clusterMaterials.matte };
+  }
+  return clusterAppearances[clusterId % clusterAppearances.length];
+}
+
+/**
+ * Get cluster color by index (for 2D UI elements like sidebar dots)
  */
 export function getClusterColor(clusterId: number): string {
-  if (clusterId < 0) return clusterColors.noise;
-  const clusterKeys = Object.keys(clusterColors).filter((k) =>
-    k.startsWith("cluster")
-  );
-  const index = clusterId % clusterKeys.length;
-  return clusterColors[clusterKeys[index] as keyof typeof clusterColors];
+  return getClusterAppearance(clusterId).color;
 }
 
 /**
