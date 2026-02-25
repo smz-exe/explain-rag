@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Plus, Search } from "lucide-react";
 import { useIngestPapersIngestPost } from "@/api/queries/ingestion/ingestion";
+import { searchPapersPapersSearchGet } from "@/api/queries/papers/papers";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface PaperSearchResult {
@@ -52,8 +53,8 @@ export function IngestForm() {
           setSuccessMessage(`Ingested: ${ingested[0].title}`);
         }
       }
-    } catch (err) {
-      console.error("Ingestion failed:", err);
+    } catch {
+      // Error is handled by ingestMutation.isError state
     }
   };
 
@@ -66,27 +67,22 @@ export function IngestForm() {
     setSelectedPapers([]);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(
-        `${apiUrl}/papers/search?query=${encodeURIComponent(searchQuery)}&max_results=5`,
-        { credentials: "include" }
-      );
+      const response = await searchPapersPapersSearchGet({
+        query: searchQuery,
+        max_results: 5,
+      });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          setSearchError("Authentication required. Please log in again.");
-        } else {
-          const error = await response.json();
-          setSearchError(error.detail || "Search failed");
-        }
-        return;
+      if (response.status === 200) {
+        setSearchResults(response.data.papers);
+      } else {
+        setSearchError("Search failed. Please try again.");
       }
-
-      const data = await response.json();
-      setSearchResults(data.papers);
     } catch (err) {
-      setSearchError("Failed to search arXiv. Please try again.");
-      console.error("Search failed:", err);
+      if (err instanceof Error && err.message.includes("401")) {
+        setSearchError("Authentication required. Please log in again.");
+      } else {
+        setSearchError("Failed to search arXiv. Please try again.");
+      }
     } finally {
       setIsSearching(false);
     }
@@ -125,8 +121,8 @@ export function IngestForm() {
       setSearchResults([]);
       setSelectedPapers([]);
       setSearchQuery("");
-    } catch (err) {
-      console.error("Ingestion failed:", err);
+    } catch {
+      // Error is handled by ingestMutation.isError state
     }
   };
 

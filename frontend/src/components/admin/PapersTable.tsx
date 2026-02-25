@@ -23,13 +23,16 @@ export function PapersTable() {
   const deleteMutation = useDeletePaperPapersPaperIdDelete();
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const handleDelete = async (paperId: string) => {
+    setDeleteError(null);
     try {
       await deleteMutation.mutateAsync({ paperId });
       setConfirmDelete(null);
       refetch();
-    } catch (err) {
-      console.error("Failed to delete:", err);
+    } catch {
+      setDeleteError("Failed to delete paper. Please try again.");
     }
   };
 
@@ -71,6 +74,11 @@ export function PapersTable() {
         <CardTitle>Papers ({papers.length})</CardTitle>
       </CardHeader>
       <CardContent>
+        {deleteError && (
+          <div className="mb-4 rounded bg-red-50 p-2 text-sm text-red-600 dark:bg-red-900/20">
+            {deleteError}
+          </div>
+        )}
         {papers.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             No papers ingested yet. Use the form above to add papers.

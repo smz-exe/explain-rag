@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Loader2, LogOut } from "lucide-react";
@@ -11,8 +13,15 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { user, isLoading, logout } = useAuth();
+  const router = useRouter();
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace("/login");
+    }
+  }, [isLoading, user, router]);
+
+  if (isLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
@@ -33,7 +42,7 @@ export default function AdminLayout({
           </div>
           <div className="flex items-center gap-4">
             <span className="text-muted-foreground text-sm">
-              {user?.username}
+              {user.username}
             </span>
             <Button variant="outline" size="sm" onClick={logout}>
               <LogOut className="mr-2 h-4 w-4" />
