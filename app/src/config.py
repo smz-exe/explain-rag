@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     # Storage Configuration
     sqlite_db_path: str = "./data/queries.db"
 
+    # Database Configuration (Supabase / PostgreSQL)
+    # Format: postgresql://user:password@host:port/database
+    database_url: str = ""  # If empty, falls back to SQLite + ChromaDB
+    database_pool_min: int = 2
+    database_pool_max: int = 10
+
     # Model Loading Configuration
     preload_models: bool = True  # Preload models at startup to avoid cold start
     hf_offline_mode: bool = False  # Use only locally cached HuggingFace models

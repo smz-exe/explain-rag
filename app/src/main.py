@@ -24,6 +24,8 @@ from src.adapters.outbound.env_user_storage import EnvUserStorage
 from src.adapters.outbound.hdbscan_clusterer import HDBSCANClusterer
 from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
 from src.adapters.outbound.langchain_rag import LangChainRAG
+from src.adapters.outbound.postgres_query_storage import PostgresQueryStorage
+from src.adapters.outbound.postgres_vector_store import PostgresVectorStore
 from src.adapters.outbound.ragas_evaluator import RAGASEvaluator
 from src.adapters.outbound.sqlite_coordinates_storage import SQLiteCoordinatesStorage
 from src.adapters.outbound.sqlite_query_storage import SQLiteQueryStorage
@@ -101,8 +103,16 @@ def create_app(
         )
 
     if vector_store is None:
-        logger.info(f"Initializing vector store: {settings.chroma_persist_dir}")
-        vector_store = ChromaVectorStore(persist_dir=settings.chroma_persist_dir)
+        if settings.database_url:
+            logger.info("Initializing PostgreSQL vector store")
+            vector_store = PostgresVectorStore(
+                database_url=settings.database_url,
+                pool_min_size=settings.database_pool_min,
+                pool_max_size=settings.database_pool_max,
+            )
+        else:
+            logger.info(f"Initializing ChromaDB vector store: {settings.chroma_persist_dir}")
+            vector_store = ChromaVectorStore(persist_dir=settings.chroma_persist_dir)
 
     logger.info("Initializing arXiv paper source")
     paper_source = ArxivPaperSource()
@@ -133,8 +143,16 @@ def create_app(
         )
 
     if query_storage is None:
-        logger.info(f"Initializing query storage: {settings.sqlite_db_path}")
-        query_storage = SQLiteQueryStorage(db_path=settings.sqlite_db_path)
+        if settings.database_url:
+            logger.info("Initializing PostgreSQL query storage")
+            query_storage = PostgresQueryStorage(
+                database_url=settings.database_url,
+                pool_min_size=settings.database_pool_min,
+                pool_max_size=settings.database_pool_max,
+            )
+        else:
+            logger.info(f"Initializing SQLite query storage: {settings.sqlite_db_path}")
+            query_storage = SQLiteQueryStorage(db_path=settings.sqlite_db_path)
 
     if coordinates_storage is None:
         logger.info(f"Initializing coordinates storage: {settings.sqlite_db_path}")
@@ -218,7 +236,13 @@ def create_app(
         await coordinates_service.initialize()
         logger.info("Startup tasks completed")
         yield
-        # Shutdown (if needed in the future)
+        # Shutdown - close connection pools
+        logger.info("Running shutdown tasks...")
+        if hasattr(vector_store, "close"):
+            await vector_store.close()
+        if hasattr(query_storage, "close"):
+            await query_storage.close()
+        logger.info("Shutdown tasks completed")
 
     # Create FastAPI app
     app = FastAPI(

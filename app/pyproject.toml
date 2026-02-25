@@ -2,7 +2,6 @@
 name = "explainrag"
 version = "0.1.0"
 description = "Explainable Retrieval-Augmented Generation for academic papers"
-readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.129.0",
@@ -27,6 +26,9 @@ dependencies = [
     "datasets>=2.14.0",
     "umap-learn>=0.5.5",
     "hdbscan>=0.8.33",
+    # PostgreSQL / Supabase
+    "asyncpg>=0.29.0",
+    "pgvector>=0.3.0",
 ]
 
 [project.optional-dependencies]

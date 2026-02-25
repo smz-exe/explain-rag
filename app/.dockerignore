@@ -1,0 +1,43 @@
+# Virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Test files
+tests/
+pytest.ini
+.pytest_cache/
+
+# Local data (will be stored in Supabase)
+data/
+
+# Development files
+.env
+.env.local
+.env.*.local
+*.md
+docs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Supabase (local development only)
+supabase/
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# Coverage reports
+.coverage
+htmlcov/
