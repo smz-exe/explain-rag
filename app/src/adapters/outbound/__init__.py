@@ -5,6 +5,7 @@ from .hdbscan_clusterer import HDBSCANClusterer
 from .langchain_faithfulness import LangChainFaithfulness
 from .langchain_rag import LangChainRAG
 from .ragas_evaluator import RAGASEvaluator
+from .sqlite_coordinates_storage import SQLiteCoordinatesStorage
 from .sqlite_query_storage import SQLiteQueryStorage
 from .st_embedding import SentenceTransformerEmbedding
 from .umap_reducer import UMAPReducer
@@ -18,6 +19,7 @@ __all__ = [
     "SentenceTransformerEmbedding",
     "LangChainRAG",
     "LangChainFaithfulness",
+    "SQLiteCoordinatesStorage",
     "SQLiteQueryStorage",
     "UMAPReducer",
 ]

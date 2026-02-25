@@ -1,6 +1,7 @@
 import logging
 import os
 import traceback
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +25,7 @@ from src.adapters.outbound.hdbscan_clusterer import HDBSCANClusterer
 from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
 from src.adapters.outbound.langchain_rag import LangChainRAG
 from src.adapters.outbound.ragas_evaluator import RAGASEvaluator
+from src.adapters.outbound.sqlite_coordinates_storage import SQLiteCoordinatesStorage
 from src.adapters.outbound.sqlite_query_storage import SQLiteQueryStorage
 from src.adapters.outbound.st_embedding import SentenceTransformerEmbedding
 from src.adapters.outbound.umap_reducer import UMAPReducer
@@ -86,6 +88,9 @@ def create_app() -> FastAPI:
     logger.info(f"Initializing query storage: {settings.sqlite_db_path}")
     query_storage = SQLiteQueryStorage(db_path=settings.sqlite_db_path)
 
+    logger.info(f"Initializing coordinates storage: {settings.sqlite_db_path}")
+    coordinates_storage = SQLiteCoordinatesStorage(db_path=settings.sqlite_db_path)
+
     logger.info("Initializing user storage for auth")
     user_storage = EnvUserStorage(
         admin_username=settings.admin_username,
@@ -145,13 +150,26 @@ def create_app() -> FastAPI:
         vector_store=vector_store,
         dim_reducer=dim_reducer,
         clusterer=clusterer,
+        storage=coordinates_storage,
     )
+
+    # Define lifespan context manager for startup/shutdown events
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """Lifespan context manager for startup and shutdown events."""
+        # Startup
+        logger.info("Running startup tasks...")
+        await coordinates_service.initialize()
+        logger.info("Startup tasks completed")
+        yield
+        # Shutdown (if needed in the future)
 
     # Create FastAPI app
     app = FastAPI(
         title="ExplainRAG",
         description="Explainable Retrieval-Augmented Generation for academic papers",
         version="0.1.0",
+        lifespan=lifespan,
     )
 
     # Configure CORS

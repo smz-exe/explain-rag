@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from src.domain.entities.coordinates import Cluster, PaperCoordinates
 from src.domain.ports.clustering import ClusteringPort
+from src.domain.ports.coordinates_storage import CoordinatesStoragePort
 from src.domain.ports.dimensionality_reduction import DimensionalityReductionPort
 from src.domain.ports.vector_store import VectorStorePort
 
@@ -21,6 +22,7 @@ class CoordinatesService:
         vector_store: VectorStorePort,
         dim_reducer: DimensionalityReductionPort,
         clusterer: ClusteringPort,
+        storage: CoordinatesStoragePort | None = None,
     ):
         """Initialize the coordinates service.
 
@@ -28,15 +30,40 @@ class CoordinatesService:
             vector_store: Adapter for retrieving paper embeddings.
             dim_reducer: Adapter for dimensionality reduction (UMAP).
             clusterer: Adapter for clustering (HDBSCAN).
+            storage: Optional adapter for persisting coordinates to storage.
         """
         self._vector_store = vector_store
         self._dim_reducer = dim_reducer
         self._clusterer = clusterer
+        self._storage = storage
 
         # In-memory cache for computed data
         self._paper_coordinates: list[PaperCoordinates] = []
         self._clusters: list[Cluster] = []
         self._computed_at: datetime | None = None
+
+    async def initialize(self) -> None:
+        """Initialize service by loading persisted data if available.
+
+        Call this method on startup to restore coordinates from storage.
+        Note: UMAP will not be fitted after loading, so get_query_coordinates()
+        will return None until recompute_all() is called.
+        """
+        if self._storage is None:
+            return
+
+        try:
+            coords, clusters, computed_at = await self._storage.load()
+            if coords:
+                self._paper_coordinates = coords
+                self._clusters = clusters
+                self._computed_at = computed_at
+                logger.info(
+                    f"Loaded {len(coords)} coordinates and {len(clusters)} clusters "
+                    f"from storage (computed at {computed_at})"
+                )
+        except Exception as e:
+            logger.warning(f"Failed to load coordinates from storage: {e}")
 
     @property
     def is_computed(self) -> bool:
@@ -125,6 +152,15 @@ class CoordinatesService:
         self._clusters = self._build_clusters(cluster_labels, paper_ids, paper_metadata)
 
         self._computed_at = datetime.now(UTC)
+
+        # Persist to storage if available
+        if self._storage is not None:
+            await self._storage.save(
+                self._paper_coordinates,
+                self._clusters,
+                self._computed_at,
+            )
+
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
         logger.info(
@@ -264,9 +300,16 @@ class CoordinatesService:
             logger.error(f"Failed to project query coordinates: {e}")
             return None
 
-    def clear_cache(self) -> None:
-        """Clear the cached coordinates and clusters."""
+    async def clear_cache(self) -> None:
+        """Clear the cached coordinates and clusters.
+
+        Also clears storage if available.
+        """
         self._paper_coordinates = []
         self._clusters = []
         self._computed_at = None
+
+        if self._storage is not None:
+            await self._storage.clear()
+
         logger.info("Coordinates cache cleared")

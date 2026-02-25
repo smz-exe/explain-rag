@@ -20,7 +20,9 @@ from src.domain.entities.chunk import Chunk
 from src.domain.entities.explanation import ClaimVerification, FaithfulnessResult
 from src.domain.entities.paper import Paper
 from src.domain.entities.query import Citation, GenerationResult, QueryResponse
+from src.domain.entities.coordinates import Cluster, PaperCoordinates
 from src.domain.ports.clustering import ClusteringPort
+from src.domain.ports.coordinates_storage import CoordinatesStoragePort
 from src.domain.ports.dimensionality_reduction import DimensionalityReductionPort
 from src.domain.ports.embedding import EmbeddingPort
 from src.domain.ports.faithfulness import FaithfulnessPort
@@ -363,6 +365,51 @@ class MockQueryStoragePort(QueryStoragePort):
         return len(self.queries)
 
 
+class MockCoordinatesStoragePort(CoordinatesStoragePort):
+    """Mock coordinates storage adapter for testing."""
+
+    def __init__(
+        self,
+        initial_coordinates: list[PaperCoordinates] | None = None,
+        initial_clusters: list[Cluster] | None = None,
+        initial_computed_at: "datetime | None" = None,
+    ):
+        from datetime import datetime
+
+        self.coordinates: list[PaperCoordinates] = initial_coordinates or []
+        self.clusters: list[Cluster] = initial_clusters or []
+        self.computed_at: datetime | None = initial_computed_at
+        self.load_calls: int = 0
+        self.save_calls: list[tuple[list[PaperCoordinates], list[Cluster], datetime]] = []
+        self.clear_calls: int = 0
+
+    async def load(
+        self,
+    ) -> tuple[list[PaperCoordinates], list[Cluster], "datetime | None"]:
+        """Load stored coordinates and clusters."""
+        self.load_calls += 1
+        return self.coordinates.copy(), self.clusters.copy(), self.computed_at
+
+    async def save(
+        self,
+        coordinates: list[PaperCoordinates],
+        clusters: list[Cluster],
+        computed_at: "datetime",
+    ) -> None:
+        """Save coordinates and clusters."""
+        self.save_calls.append((coordinates, clusters, computed_at))
+        self.coordinates = coordinates.copy()
+        self.clusters = clusters.copy()
+        self.computed_at = computed_at
+
+    async def clear(self) -> None:
+        """Clear all stored coordinates and clusters."""
+        self.clear_calls += 1
+        self.coordinates = []
+        self.clusters = []
+        self.computed_at = None
+
+
 # Fixtures for mock adapters
 
 
@@ -412,3 +459,9 @@ def mock_dim_reduction() -> MockDimensionalityReductionPort:
 def mock_clustering() -> MockClusteringPort:
     """Create a mock clustering adapter."""
     return MockClusteringPort()
+
+
+@pytest.fixture
+def mock_coordinates_storage() -> MockCoordinatesStoragePort:
+    """Create a mock coordinates storage adapter."""
+    return MockCoordinatesStoragePort()

@@ -3,8 +3,10 @@
 import pytest
 
 from src.application.coordinates_service import CoordinatesService
+from src.domain.entities.coordinates import Cluster, PaperCoordinates
 from tests.conftest import (
     MockClusteringPort,
+    MockCoordinatesStoragePort,
     MockDimensionalityReductionPort,
     MockVectorStorePort,
 )
@@ -114,7 +116,7 @@ class TestCoordinatesService:
         await service.recompute_all()
         assert service.is_computed is True
 
-        service.clear_cache()
+        await service.clear_cache()
 
         assert service.is_computed is False
         assert service.computed_at is None
@@ -286,3 +288,134 @@ class TestMultiplePapers:
         assert cluster_1 is not None
         assert len(cluster_1.paper_ids) == 1
         assert "paper-2" in cluster_1.paper_ids
+
+
+class TestCoordinatesServiceWithStorage:
+    """Test CoordinatesService with storage integration."""
+
+    @pytest.fixture
+    def mock_vector_store_with_papers(self, sample_chunks):
+        """Create a mock vector store with paper data."""
+        store = MockVectorStorePort(chunks=sample_chunks)
+
+        async def mock_list_papers():
+            return [
+                {
+                    "paper_id": "paper-001",
+                    "arxiv_id": "1706.03762",
+                    "title": "Attention Is All You Need",
+                    "chunk_count": 3,
+                },
+            ]
+
+        store.list_papers = mock_list_papers
+        return store
+
+    @pytest.fixture
+    def mock_storage(self):
+        """Create a mock coordinates storage."""
+        return MockCoordinatesStoragePort()
+
+    @pytest.fixture
+    def service_with_storage(self, mock_vector_store_with_papers, mock_storage):
+        """Create a CoordinatesService with mock adapters and storage."""
+        return CoordinatesService(
+            vector_store=mock_vector_store_with_papers,
+            dim_reducer=MockDimensionalityReductionPort(),
+            clusterer=MockClusteringPort(),
+            storage=mock_storage,
+        )
+
+    @pytest.mark.asyncio
+    async def test_initialize_loads_from_storage(self, mock_vector_store_with_papers):
+        """Test that initialize loads coordinates from storage."""
+        from datetime import UTC, datetime
+
+        # Pre-populate storage with coordinates
+        computed_at = datetime(2025, 1, 15, 12, 0, 0, tzinfo=UTC)
+        initial_coords = [
+            PaperCoordinates(
+                paper_id="paper-001",
+                arxiv_id="1706.03762",
+                title="Attention Is All You Need",
+                coords=(1.0, 2.0, 3.0),
+                cluster_id=0,
+                chunk_count=3,
+            ),
+        ]
+        initial_clusters = [
+            Cluster(id=0, label="Transformers", paper_ids=["paper-001"]),
+        ]
+        storage = MockCoordinatesStoragePort(
+            initial_coordinates=initial_coords,
+            initial_clusters=initial_clusters,
+            initial_computed_at=computed_at,
+        )
+
+        service = CoordinatesService(
+            vector_store=mock_vector_store_with_papers,
+            dim_reducer=MockDimensionalityReductionPort(),
+            clusterer=MockClusteringPort(),
+            storage=storage,
+        )
+
+        await service.initialize()
+
+        assert service.is_computed is True
+        assert service.computed_at == computed_at
+        coords = await service.get_paper_coordinates()
+        assert len(coords) == 1
+        assert coords[0].paper_id == "paper-001"
+        clusters = await service.get_clusters()
+        assert len(clusters) == 1
+        assert storage.load_calls == 1
+
+    @pytest.mark.asyncio
+    async def test_initialize_handles_empty_storage(self, service_with_storage, mock_storage):
+        """Test that initialize handles empty storage gracefully."""
+        await service_with_storage.initialize()
+
+        assert service_with_storage.is_computed is False
+        coords = await service_with_storage.get_paper_coordinates()
+        assert coords == []
+        assert mock_storage.load_calls == 1
+
+    @pytest.mark.asyncio
+    async def test_recompute_saves_to_storage(self, service_with_storage, mock_storage):
+        """Test that recompute_all saves to storage."""
+        await service_with_storage.recompute_all()
+
+        assert len(mock_storage.save_calls) == 1
+        saved_coords, saved_clusters, saved_computed_at = mock_storage.save_calls[0]
+        assert len(saved_coords) == 1
+        assert saved_coords[0].paper_id == "paper-001"
+        assert saved_computed_at is not None
+
+    @pytest.mark.asyncio
+    async def test_clear_cache_clears_storage(self, service_with_storage, mock_storage):
+        """Test that clear_cache clears storage."""
+        await service_with_storage.recompute_all()
+        await service_with_storage.clear_cache()
+
+        assert mock_storage.clear_calls == 1
+
+    @pytest.mark.asyncio
+    async def test_service_works_without_storage(self, mock_vector_store_with_papers):
+        """Test that service works without storage (backward compatibility)."""
+        service = CoordinatesService(
+            vector_store=mock_vector_store_with_papers,
+            dim_reducer=MockDimensionalityReductionPort(),
+            clusterer=MockClusteringPort(),
+            # No storage parameter
+        )
+
+        # Initialize should be a no-op
+        await service.initialize()
+
+        # Recompute should work normally
+        result = await service.recompute_all()
+        assert result["papers_processed"] == 1
+
+        # Clear cache should work normally
+        await service.clear_cache()
+        assert service.is_computed is False

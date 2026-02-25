@@ -1,4 +1,5 @@
 from .clustering import ClusteringPort
+from .coordinates_storage import CoordinatesStoragePort
 from .dimensionality_reduction import DimensionalityReductionPort
 from .embedding import EmbeddingPort
 from .evaluation import EvaluationError, EvaluationMetrics, EvaluationPort, EvaluationResult
@@ -12,6 +13,7 @@ from .vector_store import VectorStorePort
 
 __all__ = [
     "ClusteringPort",
+    "CoordinatesStoragePort",
     "DimensionalityReductionPort",
     "EmbeddingPort",
     "EvaluationError",
