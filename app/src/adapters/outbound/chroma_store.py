@@ -196,12 +196,15 @@ class ChromaVectorStore(VectorStorePort):
                 offset=offset,
             )
 
-            if not batch["embeddings"] or not batch["metadatas"]:
+            # Check for empty results (embeddings may be numpy array)
+            embeddings = batch.get("embeddings")
+            metadatas = batch.get("metadatas")
+            if embeddings is None or metadatas is None:
+                continue
+            if len(embeddings) == 0 or len(metadatas) == 0:
                 continue
 
-            for embedding, metadata in zip(
-                batch["embeddings"], batch["metadatas"], strict=True
-            ):
+            for embedding, metadata in zip(embeddings, metadatas, strict=True):
                 if metadata and "paper_id" in metadata:
                     paper_embeddings[metadata["paper_id"]].append(embedding)
 

@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     hf_offline_mode: bool = False  # Use only locally cached HuggingFace models
     hf_token: SecretStr = SecretStr("")  # HuggingFace token for higher rate limits
 
+    # Visualization Configuration (UMAP)
+    umap_n_neighbors: int = 15  # Number of neighbors for UMAP
+    umap_min_dist: float = 0.1  # Minimum distance between points in low-dimensional space
+
+    # Clustering Configuration (HDBSCAN)
+    hdbscan_min_cluster_size: int = 2  # Minimum cluster size
+    hdbscan_min_samples: int = 1  # Minimum samples for core points
+
     # Server Configuration
     api_host: str = "0.0.0.0"
     api_port: int = 8000

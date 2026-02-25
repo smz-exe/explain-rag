@@ -20,5 +20,5 @@ class Cluster(BaseModel):
     """Semantic cluster of papers."""
 
     id: int = Field(description="Cluster identifier")
-    label: str = Field(description="LLM-generated cluster label")
+    label: str = Field(description="Auto-generated cluster label from paper titles")
     paper_ids: list[str] = Field(description="List of paper IDs in this cluster")

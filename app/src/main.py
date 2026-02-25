@@ -6,16 +6,28 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.adapters.inbound.http import auth, evaluation, health, ingest, papers, query, stats
+from src.adapters.inbound.http import (
+    auth,
+    coordinates,
+    evaluation,
+    health,
+    ingest,
+    papers,
+    query,
+    stats,
+)
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
 from src.adapters.outbound.chroma_store import ChromaVectorStore
 from src.adapters.outbound.cross_encoder_reranker import CrossEncoderReranker
 from src.adapters.outbound.env_user_storage import EnvUserStorage
+from src.adapters.outbound.hdbscan_clusterer import HDBSCANClusterer
 from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
 from src.adapters.outbound.langchain_rag import LangChainRAG
 from src.adapters.outbound.ragas_evaluator import RAGASEvaluator
 from src.adapters.outbound.sqlite_query_storage import SQLiteQueryStorage
 from src.adapters.outbound.st_embedding import SentenceTransformerEmbedding
+from src.adapters.outbound.umap_reducer import UMAPReducer
+from src.application.coordinates_service import CoordinatesService
 from src.application.ingestion_service import IngestionService
 from src.application.query_service import QueryService
 from src.config import Settings
@@ -90,6 +102,19 @@ def create_app() -> FastAPI:
         max_retries=settings.claude_max_retries,
     )
 
+    logger.info("Initializing dimensionality reduction adapter (UMAP)")
+    dim_reducer = UMAPReducer(
+        n_neighbors=settings.umap_n_neighbors,
+        min_dist=settings.umap_min_dist,
+        random_state=42,
+    )
+
+    logger.info("Initializing clustering adapter (HDBSCAN)")
+    clusterer = HDBSCANClusterer(
+        min_cluster_size=settings.hdbscan_min_cluster_size,
+        min_samples=settings.hdbscan_min_samples,
+    )
+
     # Preload models at startup to avoid cold start on first query
     if settings.preload_models:
         logger.info("Preloading models...")
@@ -114,6 +139,12 @@ def create_app() -> FastAPI:
         reranker=reranker,
         query_storage=query_storage,
         default_top_k=settings.default_top_k,
+    )
+
+    coordinates_service = CoordinatesService(
+        vector_store=vector_store,
+        dim_reducer=dim_reducer,
+        clusterer=clusterer,
     )
 
     # Create FastAPI app
@@ -154,6 +185,8 @@ def create_app() -> FastAPI:
     app.include_router(auth.create_router(user_storage, settings))
     app.include_router(ingest.create_router(ingestion_service))
     app.include_router(papers.create_router(vector_store, paper_source))
+    app.include_router(coordinates.create_router(coordinates_service))
+    app.include_router(coordinates.create_admin_router(coordinates_service))
     app.include_router(health.create_router(vector_store))
     app.include_router(query.create_router(query_service))
     app.include_router(stats.create_router(vector_store, query_storage))
