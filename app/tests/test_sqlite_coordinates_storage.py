@@ -76,9 +76,7 @@ class TestMockCoordinatesStorage:
         assert storage.load_calls == 1
 
     @pytest.mark.asyncio
-    async def test_save_and_load(
-        self, sample_coordinates, sample_clusters, sample_computed_at
-    ):
+    async def test_save_and_load(self, sample_coordinates, sample_clusters, sample_computed_at):
         """Test saving and loading coordinates."""
         storage = MockCoordinatesStoragePort()
 

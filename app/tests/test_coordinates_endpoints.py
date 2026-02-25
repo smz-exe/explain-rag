@@ -96,9 +96,7 @@ class TestCoordinatesIntegration:
     async def test_embeddings_updated_after_recompute(self, authenticated_client):
         """Test that embeddings reflect recompute timestamp."""
         # Trigger recompute
-        recompute_response = await authenticated_client.post(
-            "/admin/papers/recompute-embeddings"
-        )
+        recompute_response = await authenticated_client.post("/admin/papers/recompute-embeddings")
         assert recompute_response.status_code == 200
 
         # Get embeddings
@@ -113,9 +111,7 @@ class TestCoordinatesIntegration:
     async def test_clusters_updated_after_recompute(self, authenticated_client):
         """Test that clusters reflect recompute timestamp."""
         # Trigger recompute
-        recompute_response = await authenticated_client.post(
-            "/admin/papers/recompute-embeddings"
-        )
+        recompute_response = await authenticated_client.post("/admin/papers/recompute-embeddings")
         assert recompute_response.status_code == 200
 
         # Get clusters

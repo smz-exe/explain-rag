@@ -88,7 +88,7 @@ class Settings(BaseSettings):
         if not self.admin_password_hash.get_secret_value():
             raise ValueError(
                 "ADMIN_PASSWORD_HASH is required. "
-                'Generate with: python -c "import bcrypt; print(bcrypt.hashpw(b\'password\', bcrypt.gensalt(12)).decode())"'
+                "Generate with: python -c \"import bcrypt; print(bcrypt.hashpw(b'password', bcrypt.gensalt(12)).decode())\""
             )
 
         return self

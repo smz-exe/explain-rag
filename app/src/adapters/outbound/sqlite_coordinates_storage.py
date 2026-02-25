@@ -74,9 +74,7 @@ class SQLiteCoordinatesStorage(CoordinatesStoragePort):
             db.row_factory = aiosqlite.Row
 
             # Load coordinates
-            async with db.execute(
-                "SELECT * FROM paper_coordinates ORDER BY paper_id"
-            ) as cursor:
+            async with db.execute("SELECT * FROM paper_coordinates ORDER BY paper_id") as cursor:
                 rows = await cursor.fetchall()
 
             for row in rows:
@@ -112,9 +110,7 @@ class SQLiteCoordinatesStorage(CoordinatesStoragePort):
                     computed_at = datetime.fromisoformat(row["computed_at"])
 
         if coordinates:
-            logger.info(
-                f"Loaded {len(coordinates)} coordinates and {len(clusters)} clusters"
-            )
+            logger.info(f"Loaded {len(coordinates)} coordinates and {len(clusters)} clusters")
 
         return coordinates, clusters, computed_at
 
@@ -183,9 +179,7 @@ class SQLiteCoordinatesStorage(CoordinatesStoragePort):
             logger.error(f"Failed to save coordinates to database: {e}")
             raise
 
-        logger.info(
-            f"Saved {len(coordinates)} coordinates and {len(clusters)} clusters"
-        )
+        logger.info(f"Saved {len(coordinates)} coordinates and {len(clusters)} clusters")
 
     async def clear(self) -> None:
         """Clear all stored coordinates and clusters."""

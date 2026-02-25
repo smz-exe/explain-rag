@@ -113,9 +113,7 @@ class TestPaperSearchResponse:
     @pytest.mark.asyncio
     async def test_response_has_required_fields(self, authenticated_client):
         """Test response includes all required fields."""
-        response = await authenticated_client.get(
-            "/papers/search?query=attention&max_results=1"
-        )
+        response = await authenticated_client.get("/papers/search?query=attention&max_results=1")
 
         if response.status_code == 500:
             pytest.skip("arXiv API unavailable")
@@ -140,9 +138,7 @@ class TestPaperSearchResponse:
     @pytest.mark.asyncio
     async def test_abstract_truncated(self, authenticated_client):
         """Test that long abstracts are truncated."""
-        response = await authenticated_client.get(
-            "/papers/search?query=attention&max_results=1"
-        )
+        response = await authenticated_client.get("/papers/search?query=attention&max_results=1")
 
         if response.status_code == 500:
             pytest.skip("arXiv API unavailable")

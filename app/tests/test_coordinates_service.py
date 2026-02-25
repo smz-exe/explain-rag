@@ -19,6 +19,7 @@ class TestCoordinatesService:
     def mock_vector_store_with_papers(self, sample_chunks):
         """Create a mock vector store with paper data."""
         store = MockVectorStorePort(chunks=sample_chunks)
+
         # Override list_papers to return proper metadata
         async def mock_list_papers():
             return [
@@ -29,6 +30,7 @@ class TestCoordinatesService:
                     "chunk_count": 3,
                 },
             ]
+
         store.list_papers = mock_list_papers
         return store
 
@@ -235,10 +237,26 @@ class TestMultiplePapers:
         # Override list_papers
         async def mock_list_papers():
             return [
-                {"paper_id": "paper-0", "arxiv_id": "2401.00001", "title": "Machine Learning Basics", "chunk_count": 2},
-                {"paper_id": "paper-1", "arxiv_id": "2401.00002", "title": "Deep Learning Advances", "chunk_count": 2},
-                {"paper_id": "paper-2", "arxiv_id": "2401.00003", "title": "Neural Network Training", "chunk_count": 2},
+                {
+                    "paper_id": "paper-0",
+                    "arxiv_id": "2401.00001",
+                    "title": "Machine Learning Basics",
+                    "chunk_count": 2,
+                },
+                {
+                    "paper_id": "paper-1",
+                    "arxiv_id": "2401.00002",
+                    "title": "Deep Learning Advances",
+                    "chunk_count": 2,
+                },
+                {
+                    "paper_id": "paper-2",
+                    "arxiv_id": "2401.00003",
+                    "title": "Neural Network Training",
+                    "chunk_count": 2,
+                },
             ]
+
         store.list_papers = mock_list_papers
 
         # Override get_paper_embeddings
@@ -248,6 +266,7 @@ class TestMultiplePapers:
                 ("paper-1", [0.2] * 384),
                 ("paper-2", [0.3] * 384),
             ]
+
         store.get_paper_embeddings = mock_get_paper_embeddings
 
         return CoordinatesService(

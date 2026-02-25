@@ -14,9 +14,7 @@ class EvaluationMetrics(BaseModel):
     answer_relevancy: float = Field(
         ge=0.0, le=1.0, description="Relevance of answer to the question"
     )
-    context_precision: float = Field(
-        ge=0.0, le=1.0, description="Precision of retrieved context"
-    )
+    context_precision: float = Field(ge=0.0, le=1.0, description="Precision of retrieved context")
     context_recall: float = Field(
         ge=0.0, le=1.0, description="Recall of retrieved context (requires ground truth)"
     )

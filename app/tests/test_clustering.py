@@ -111,7 +111,7 @@ class TestHDBSCANClusterer:
         count = await clusterer.get_cluster_count()
 
         # Count should be number of unique non-negative labels
-        unique_clusters = set(l for l in labels if l >= 0)
+        unique_clusters = set(label for label in labels if label >= 0)
         assert count == len(unique_clusters)
 
     @pytest.mark.asyncio

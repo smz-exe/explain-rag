@@ -1,7 +1,5 @@
 """Tests for coordinates domain entities."""
 
-import pytest
-
 from src.domain.entities.coordinates import Cluster, PaperCoordinates
 
 

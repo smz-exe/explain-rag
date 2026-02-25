@@ -117,12 +117,6 @@ class TestUMAPReducer:
         reducer2 = UMAPReducer(n_neighbors=3, random_state=123)
         coords2 = await reducer2.fit_transform(embeddings)
 
-        # At least some coordinates should differ with different seeds
-        # (checking that UMAP actually uses the random state)
-        coords_match = all(
-            c1 == pytest.approx(c2, rel=0.01)
-            for c1, c2 in zip(coords1, coords2, strict=True)
-        )
         # With different seeds, results should generally differ
         # (though not guaranteed, hence we just check structure)
         assert len(coords1) == len(coords2) == 6

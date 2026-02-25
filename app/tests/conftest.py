@@ -13,14 +13,16 @@ os.environ.setdefault(
 # Test API key (not a real key, just for validation)
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-key-for-testing-only")
 
+from datetime import datetime
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.domain.entities.chunk import Chunk
+from src.domain.entities.coordinates import Cluster, PaperCoordinates
 from src.domain.entities.explanation import ClaimVerification, FaithfulnessResult
 from src.domain.entities.paper import Paper
 from src.domain.entities.query import Citation, GenerationResult, QueryResponse
-from src.domain.entities.coordinates import Cluster, PaperCoordinates
 from src.domain.ports.clustering import ClusteringPort
 from src.domain.ports.coordinates_storage import CoordinatesStoragePort
 from src.domain.ports.dimensionality_reduction import DimensionalityReductionPort
@@ -372,10 +374,8 @@ class MockCoordinatesStoragePort(CoordinatesStoragePort):
         self,
         initial_coordinates: list[PaperCoordinates] | None = None,
         initial_clusters: list[Cluster] | None = None,
-        initial_computed_at: "datetime | None" = None,
+        initial_computed_at: datetime | None = None,
     ):
-        from datetime import datetime
-
         self.coordinates: list[PaperCoordinates] = initial_coordinates or []
         self.clusters: list[Cluster] = initial_clusters or []
         self.computed_at: datetime | None = initial_computed_at
@@ -385,7 +385,7 @@ class MockCoordinatesStoragePort(CoordinatesStoragePort):
 
     async def load(
         self,
-    ) -> tuple[list[PaperCoordinates], list[Cluster], "datetime | None"]:
+    ) -> tuple[list[PaperCoordinates], list[Cluster], datetime | None]:
         """Load stored coordinates and clusters."""
         self.load_calls += 1
         return self.coordinates.copy(), self.clusters.copy(), self.computed_at
@@ -394,7 +394,7 @@ class MockCoordinatesStoragePort(CoordinatesStoragePort):
         self,
         coordinates: list[PaperCoordinates],
         clusters: list[Cluster],
-        computed_at: "datetime",
+        computed_at: datetime,
     ) -> None:
         """Save coordinates and clusters."""
         self.save_calls.append((coordinates, clusters, computed_at))
