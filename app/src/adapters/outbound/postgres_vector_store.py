@@ -43,6 +43,8 @@ class PostgresVectorStore(VectorStorePort):
                 min_size=self._pool_min_size,
                 max_size=self._pool_max_size,
                 init=self._init_connection,
+                # Disable statement cache for pgbouncer compatibility (Supabase)
+                statement_cache_size=0,
             )
             logger.info("PostgreSQL connection pool created")
         return self._pool

@@ -42,6 +42,8 @@ class PostgresQueryStorage(QueryStoragePort):
                 min_size=self._pool_min_size,
                 max_size=self._pool_max_size,
                 init=self._init_connection,
+                # Disable statement cache for pgbouncer compatibility (Supabase)
+                statement_cache_size=0,
             )
             logger.info("PostgreSQL query storage pool created")
         return self._pool
