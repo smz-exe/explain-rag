@@ -215,27 +215,27 @@ class TestReranking:
                 assert rank_change == 0  # chunk-002 stays at position 2
 
 
-class TestCrossEncoderReranker:
-    """Test the CrossEncoderReranker adapter."""
+class TestFastEmbedReranker:
+    """Test the FastEmbedReranker adapter."""
 
     def test_reranker_import(self):
-        """Test that CrossEncoderReranker can be imported."""
-        from src.adapters.outbound.cross_encoder_reranker import CrossEncoderReranker
+        """Test that FastEmbedReranker can be imported."""
+        from src.adapters.outbound.fastembed_reranker import FastEmbedReranker
 
-        assert CrossEncoderReranker is not None
+        assert FastEmbedReranker is not None
 
     def test_reranker_instantiation(self):
-        """Test that CrossEncoderReranker can be instantiated."""
-        from src.adapters.outbound.cross_encoder_reranker import CrossEncoderReranker
+        """Test that FastEmbedReranker can be instantiated."""
+        from src.adapters.outbound.fastembed_reranker import FastEmbedReranker
 
         # Should not load model until first use (lazy loading)
-        reranker = CrossEncoderReranker()
+        reranker = FastEmbedReranker()
         assert reranker._model is None
-        assert reranker._model_name == "cross-encoder/ms-marco-MiniLM-L-6-v2"
+        assert reranker._model_name == "Xenova/ms-marco-MiniLM-L-6-v2"
 
     def test_reranker_custom_model(self):
-        """Test that CrossEncoderReranker accepts custom model name."""
-        from src.adapters.outbound.cross_encoder_reranker import CrossEncoderReranker
+        """Test that FastEmbedReranker accepts custom model name."""
+        from src.adapters.outbound.fastembed_reranker import FastEmbedReranker
 
-        reranker = CrossEncoderReranker(model_name="cross-encoder/ms-marco-TinyBERT-L-2-v2")
-        assert reranker._model_name == "cross-encoder/ms-marco-TinyBERT-L-2-v2"
+        reranker = FastEmbedReranker(model_name="Xenova/ms-marco-TinyBERT-L-2-v2")
+        assert reranker._model_name == "Xenova/ms-marco-TinyBERT-L-2-v2"

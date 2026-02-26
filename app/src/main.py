@@ -19,8 +19,9 @@ from src.adapters.inbound.http import (
 )
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
 from src.adapters.outbound.chroma_store import ChromaVectorStore
-from src.adapters.outbound.cross_encoder_reranker import CrossEncoderReranker
 from src.adapters.outbound.env_user_storage import EnvUserStorage
+from src.adapters.outbound.fastembed_embedding import FastEmbedEmbedding
+from src.adapters.outbound.fastembed_reranker import FastEmbedReranker
 from src.adapters.outbound.hdbscan_clusterer import HDBSCANClusterer
 from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
 from src.adapters.outbound.langchain_rag import LangChainRAG
@@ -29,7 +30,6 @@ from src.adapters.outbound.postgres_vector_store import PostgresVectorStore
 from src.adapters.outbound.ragas_evaluator import RAGASEvaluator
 from src.adapters.outbound.sqlite_coordinates_storage import SQLiteCoordinatesStorage
 from src.adapters.outbound.sqlite_query_storage import SQLiteQueryStorage
-from src.adapters.outbound.st_embedding import SentenceTransformerEmbedding
 from src.adapters.outbound.umap_reducer import UMAPReducer
 from src.application.coordinates_service import CoordinatesService
 from src.application.ingestion_service import IngestionService
@@ -73,11 +73,11 @@ def create_app(
     adapters will be created. Pass mock adapters for testing.
 
     Args:
-        embedding: Embedding adapter (default: SentenceTransformerEmbedding)
+        embedding: Embedding adapter (default: FastEmbedEmbedding)
         vector_store: Vector store adapter (default: ChromaVectorStore)
         llm: LLM adapter (default: LangChainRAG)
         faithfulness: Faithfulness adapter (default: LangChainFaithfulness)
-        reranker: Reranker adapter (default: CrossEncoderReranker)
+        reranker: Reranker adapter (default: FastEmbedReranker)
         query_storage: Query storage adapter (default: SQLiteQueryStorage)
         coordinates_storage: Coordinates storage adapter (default: SQLiteCoordinatesStorage)
         evaluator: Evaluation adapter (default: RAGASEvaluator)
@@ -97,9 +97,8 @@ def create_app(
     # Initialize outbound adapters (use provided or create real ones)
     if embedding is None:
         logger.info(f"Initializing embedding adapter: {settings.embedding_model}")
-        embedding = SentenceTransformerEmbedding(
+        embedding = FastEmbedEmbedding(
             model_name=settings.embedding_model,
-            local_files_only=settings.hf_offline_mode,
         )
 
     if vector_store is None:
@@ -137,9 +136,8 @@ def create_app(
 
     if reranker is None:
         logger.info(f"Initializing reranker: {settings.reranker_model}")
-        reranker = CrossEncoderReranker(
+        reranker = FastEmbedReranker(
             model_name=settings.reranker_model,
-            local_files_only=settings.hf_offline_mode,
         )
 
     if query_storage is None:

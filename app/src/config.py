@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     claude_timeout: float = 120.0  # Timeout in seconds for Claude API calls
     claude_max_retries: int = 2  # Max retries for transient failures
 
-    # Embedding Configuration
+    # Embedding Configuration (FastEmbed with ONNX Runtime)
     embedding_provider: str = "local"
-    embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"  # FastEmbed format
     openai_api_key: SecretStr = SecretStr("")
 
     # Retrieval Configuration
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 200
     default_top_k: int = 10
     chroma_persist_dir: str = "./data/chroma"
-    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    reranker_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"  # FastEmbed format
 
     # Storage Configuration
     sqlite_db_path: str = "./data/queries.db"

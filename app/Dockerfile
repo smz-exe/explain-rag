@@ -19,7 +19,12 @@ COPY pyproject.toml .
 # Create virtual environment and install dependencies only (not the project itself)
 RUN uv venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
+
+# Install dependencies (fastembed uses ONNX Runtime, no PyTorch needed)
 RUN uv sync --no-dev --no-install-project
+
+# Clean up cache to reduce image size
+RUN rm -rf /root/.cache/uv /root/.cache/pip
 
 # Stage 2: Production image
 FROM python:3.12-slim AS production

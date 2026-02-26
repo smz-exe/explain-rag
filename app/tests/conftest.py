@@ -12,6 +12,11 @@ os.environ.setdefault(
 )
 # Test API key (not a real key, just for validation)
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-key-for-testing-only")
+# FastEmbed model names (required format for fastembed library)
+os.environ.setdefault("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+os.environ.setdefault("RERANKER_MODEL", "Xenova/ms-marco-MiniLM-L-6-v2")
+# Disable model preloading during tests (tests use mock adapters)
+os.environ.setdefault("PRELOAD_MODELS", "false")
 
 from datetime import datetime
 

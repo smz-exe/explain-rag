@@ -2,10 +2,12 @@
 
 import asyncio
 import logging
+from typing import Any
 
 from datasets import Dataset
+from fastembed import TextEmbedding
 from langchain_anthropic import ChatAnthropic
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_core.embeddings import Embeddings
 from ragas import evaluate
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.llms import LangchainLLMWrapper
@@ -17,6 +19,42 @@ from ragas.metrics._faithfulness import Faithfulness
 from src.domain.ports.evaluation import EvaluationError, EvaluationMetrics, EvaluationPort
 
 logger = logging.getLogger(__name__)
+
+
+class FastEmbedLangChainWrapper(Embeddings):
+    """LangChain-compatible wrapper for FastEmbed embeddings."""
+
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+        """Initialize the wrapper.
+
+        Args:
+            model_name: FastEmbed model name.
+        """
+        self._model = TextEmbedding(model_name=model_name)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        """Embed a list of documents."""
+        embeddings = list(self._model.embed(texts))
+        return [e.tolist() for e in embeddings]
+
+    def embed_query(self, text: str) -> list[float]:
+        """Embed a single query."""
+        embeddings = list(self._model.embed([text]))
+        return embeddings[0].tolist()
+
+    async def aembed_documents(self, texts: list[str]) -> list[list[float]]:
+        """Async embed documents."""
+        return await asyncio.to_thread(self.embed_documents, texts)
+
+    async def aembed_query(self, text: str) -> list[float]:
+        """Async embed query."""
+        return await asyncio.to_thread(self.embed_query, text)
+
+    def __call__(self, input: Any) -> Any:
+        """Make the class callable for compatibility."""
+        if isinstance(input, str):
+            return self.embed_query(input)
+        return self.embed_documents(input)
 
 
 class RAGASEvaluator(EvaluationPort):
@@ -67,10 +105,10 @@ class RAGASEvaluator(EvaluationPort):
 
     @property
     def embeddings(self) -> LangchainEmbeddingsWrapper:
-        """Lazy-load the HuggingFace embeddings wrapped for RAGAS."""
+        """Lazy-load the FastEmbed embeddings wrapped for RAGAS."""
         if self._embeddings is None:
-            hf_embeddings = HuggingFaceEmbeddings(model_name=self._embedding_model)
-            self._embeddings = LangchainEmbeddingsWrapper(hf_embeddings)
+            fastembed_wrapper = FastEmbedLangChainWrapper(model_name=self._embedding_model)
+            self._embeddings = LangchainEmbeddingsWrapper(fastembed_wrapper)
         return self._embeddings
 
     async def evaluate(

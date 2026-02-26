@@ -13,6 +13,9 @@ dockerfile = 'Dockerfile'
 API_HOST = '0.0.0.0'
 API_PORT = '8000'
 ENVIRONMENT = 'production'
+# FastEmbed model names (ONNX-based, lightweight)
+EMBEDDING_MODEL = 'sentence-transformers/all-MiniLM-L6-v2'
+RERANKER_MODEL = 'Xenova/ms-marco-MiniLM-L-6-v2'
 # First deploy: models download to volume. After cached, set to 'true' for strict offline mode
 HF_OFFLINE_MODE = 'false'
 PRELOAD_MODELS = 'true'

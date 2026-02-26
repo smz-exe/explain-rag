@@ -1,38 +1,40 @@
-"""Cross-encoder reranker adapter using sentence-transformers."""
+"""Cross-encoder reranker adapter using FastEmbed (ONNX-based)."""
 
 import asyncio
 import os
-from functools import lru_cache
 
-from sentence_transformers import CrossEncoder
+from fastembed.rerank.cross_encoder import TextCrossEncoder
 
 from src.domain.entities.chunk import Chunk
 from src.domain.ports.reranker import RerankerPort
 
 
-class CrossEncoderReranker(RerankerPort):
-    """Reranker adapter using a cross-encoder model."""
+class FastEmbedReranker(RerankerPort):
+    """Reranker adapter using FastEmbed's TextCrossEncoder with ONNX Runtime."""
 
     def __init__(
         self,
-        model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
-        local_files_only: bool = False,
+        model_name: str = "Xenova/ms-marco-MiniLM-L-6-v2",
+        cache_dir: str | None = None,
     ):
         """Initialize the reranker adapter.
 
         Args:
             model_name: Name of the cross-encoder model to use.
-            local_files_only: If True, only use locally cached models (no network).
+            cache_dir: Directory to cache downloaded models.
         """
         self._model_name = model_name
-        self._local_files_only = local_files_only or os.getenv("HF_HUB_OFFLINE", "0") == "1"
-        self._model: CrossEncoder | None = None
+        self._cache_dir = cache_dir or os.getenv("HF_HOME", None)
+        self._model: TextCrossEncoder | None = None
 
     @property
-    def model(self) -> CrossEncoder:
+    def model(self) -> TextCrossEncoder:
         """Lazy-load the model on first access."""
         if self._model is None:
-            self._model = _get_model(self._model_name, self._local_files_only)
+            self._model = TextCrossEncoder(
+                model_name=self._model_name,
+                cache_dir=self._cache_dir,
+            )
         return self._model
 
     def preload(self) -> None:
@@ -58,14 +60,16 @@ class CrossEncoderReranker(RerankerPort):
         if not chunks:
             return []
 
-        # Build query-document pairs for the cross-encoder
-        pairs = [(query, chunk.content) for chunk in chunks]
+        documents = [chunk.content for chunk in chunks]
 
-        # Get scores from cross-encoder (sync operation wrapped in thread)
-        scores = await asyncio.to_thread(self.model.predict, pairs, show_progress_bar=False)
+        def _rerank() -> list[float]:
+            scores = list(self.model.rerank(query, documents))
+            return scores
+
+        scores = await asyncio.to_thread(_rerank)
 
         # Pair chunks with scores and sort by score descending
-        chunk_scores = list(zip(chunks, scores.tolist(), strict=True))
+        chunk_scores = list(zip(chunks, scores, strict=True))
         chunk_scores.sort(key=lambda x: x[1], reverse=True)
 
         # Apply top_k limit if specified
@@ -73,9 +77,3 @@ class CrossEncoderReranker(RerankerPort):
             chunk_scores = chunk_scores[:top_k]
 
         return chunk_scores
-
-
-@lru_cache(maxsize=2)
-def _get_model(model_name: str, local_files_only: bool = False) -> CrossEncoder:
-    """Cache models to avoid reloading."""
-    return CrossEncoder(model_name, local_files_only=local_files_only)
