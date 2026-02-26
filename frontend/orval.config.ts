@@ -1,9 +1,11 @@
 import { defineConfig } from "orval";
 
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export default defineConfig({
   explainrag: {
     input: {
-      target: "http://localhost:8000/openapi.json",
+      target: `${BASE_URL}/openapi.json`,
     },
     output: {
       mode: "tags-split",
