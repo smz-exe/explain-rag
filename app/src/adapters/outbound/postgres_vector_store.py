@@ -14,6 +14,18 @@ from src.domain.ports.vector_store import VectorStorePort
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_text(text: str | None) -> str:
+    """Remove null bytes and other problematic characters from text.
+
+    PostgreSQL text columns don't allow null bytes (0x00).
+    This can happen when PDF extraction produces binary artifacts.
+    """
+    if text is None:
+        return ""
+    # Remove null bytes that cause PostgreSQL errors
+    return text.replace("\x00", "")
+
+
 class PostgresVectorStore(VectorStorePort):
     """Vector store adapter using PostgreSQL with pgvector extension."""
 
@@ -79,13 +91,18 @@ class PostgresVectorStore(VectorStorePort):
             )
 
             if not paper_exists:
-                # Get paper info from chunk metadata
-                paper_title = first_chunk.metadata.get("paper_title", "")
-                arxiv_id = first_chunk.metadata.get("arxiv_id", "")
-                url = first_chunk.metadata.get("url", "")
-                pdf_url = first_chunk.metadata.get("pdf_url", "")
+                # Get paper info from chunk metadata (sanitize all text fields)
+                paper_title = _sanitize_text(first_chunk.metadata.get("paper_title", ""))
+                arxiv_id = _sanitize_text(first_chunk.metadata.get("arxiv_id", ""))
+                url = _sanitize_text(first_chunk.metadata.get("url", ""))
+                pdf_url = _sanitize_text(first_chunk.metadata.get("pdf_url", ""))
                 authors = first_chunk.metadata.get("authors", [])
-                abstract = first_chunk.metadata.get("abstract", "")
+                # Sanitize each author name
+                if isinstance(authors, list):
+                    authors = [_sanitize_text(a) for a in authors]
+                else:
+                    authors = []
+                abstract = _sanitize_text(first_chunk.metadata.get("abstract", ""))
 
                 await conn.execute(
                     """
@@ -96,13 +113,13 @@ class PostgresVectorStore(VectorStorePort):
                     paper_id,
                     arxiv_id,
                     paper_title,
-                    authors if isinstance(authors, list) else [],
+                    authors,
                     abstract,
                     url,
                     pdf_url,
                 )
 
-            # Insert chunks with embeddings
+            # Insert chunks with embeddings (sanitize text fields to remove null bytes)
             await conn.executemany(
                 """
                 INSERT INTO chunks (id, paper_id, content, chunk_index, section, metadata, embedding)
@@ -117,12 +134,12 @@ class PostgresVectorStore(VectorStorePort):
                     (
                         chunk.id,
                         chunk.paper_id,
-                        chunk.content,
+                        _sanitize_text(chunk.content),
                         chunk.chunk_index,
-                        chunk.section,
+                        _sanitize_text(chunk.section),
                         json.dumps(
                             {
-                                k: v
+                                k: _sanitize_text(v) if isinstance(v, str) else v
                                 for k, v in chunk.metadata.items()
                                 if k
                                 not in (

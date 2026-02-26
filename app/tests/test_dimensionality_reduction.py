@@ -120,3 +120,33 @@ class TestUMAPReducer:
         # With different seeds, results should generally differ
         # (though not guaranteed, hence we just check structure)
         assert len(coords1) == len(coords2) == 6
+
+    @pytest.mark.asyncio
+    async def test_fit_transform_with_one_point_uses_fallback(self):
+        """Test that a single point uses fallback coordinates."""
+        reducer = UMAPReducer()
+        embeddings = [[0.1] * 10]
+
+        coords = await reducer.fit_transform(embeddings, n_components=3)
+
+        assert len(coords) == 1
+        assert len(coords[0]) == 3
+        # Single point should be at origin
+        assert coords[0] == (0.0, 0.0, 0.0)
+        # Fallback doesn't fit UMAP
+        assert reducer.is_fitted() is False
+
+    @pytest.mark.asyncio
+    async def test_fit_transform_with_two_points_uses_fallback(self):
+        """Test that two points use fallback coordinates spread along x-axis."""
+        reducer = UMAPReducer()
+        embeddings = [[0.1] * 10, [0.9] * 10]
+
+        coords = await reducer.fit_transform(embeddings, n_components=3)
+
+        assert len(coords) == 2
+        # Should be spread along x-axis at -1.0 and 1.0
+        assert coords[0] == (-1.0, 0.0, 0.0)
+        assert coords[1] == (1.0, 0.0, 0.0)
+        # Fallback doesn't fit UMAP
+        assert reducer.is_fitted() is False

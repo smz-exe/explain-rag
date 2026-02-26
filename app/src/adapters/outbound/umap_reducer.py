@@ -53,6 +53,11 @@ class UMAPReducer(DimensionalityReductionPort):
         if not embeddings:
             return []
 
+        # UMAP requires at least 3 points for meaningful dimensionality reduction.
+        # With fewer points, we assign simple spread-out coordinates.
+        if len(embeddings) < 3:
+            return self._generate_fallback_coordinates(len(embeddings), n_components)
+
         # Adjust n_neighbors if we have fewer samples
         n_neighbors = min(self._n_neighbors, len(embeddings) - 1)
         n_neighbors = max(n_neighbors, 2)  # UMAP needs at least 2 neighbors
@@ -68,7 +73,36 @@ class UMAPReducer(DimensionalityReductionPort):
         embeddings_array = np.array(embeddings)
         result = await asyncio.to_thread(self._reducer.fit_transform, embeddings_array)
 
+        # Check for NaN values (can happen with disconnected vertices)
+        if np.isnan(result).any():
+            return self._generate_fallback_coordinates(len(embeddings), n_components)
+
         return [tuple(row.tolist()) for row in result]
+
+    def _generate_fallback_coordinates(
+        self,
+        n_points: int,
+        n_components: int,
+    ) -> list[tuple[float, float, float]]:
+        """Generate simple spread-out coordinates when UMAP can't be used.
+
+        Used when there are too few points for meaningful dimensionality reduction.
+
+        Args:
+            n_points: Number of points to generate coordinates for.
+            n_components: Target dimensionality.
+
+        Returns:
+            List of coordinate tuples spread along a line.
+        """
+        # Spread points along the x-axis, centered at origin
+        coords = []
+        for i in range(n_points):
+            x = (i - (n_points - 1) / 2) * 2.0  # Spread by 2 units
+            y = 0.0
+            z = 0.0 if n_components >= 3 else None
+            coords.append((x, y, z) if n_components >= 3 else (x, y))
+        return coords
 
     async def transform(
         self,

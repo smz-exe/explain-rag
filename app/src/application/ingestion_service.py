@@ -52,6 +52,8 @@ class IngestionService:
         self._vector_store = vector_store
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
+        # Track papers currently being ingested to prevent duplicate requests
+        self._in_progress: set[str] = set()
 
     async def ingest_paper(self, arxiv_id: str) -> IngestionResult:
         """Ingest a single paper by arXiv ID.
@@ -62,6 +64,23 @@ class IngestionService:
         Returns:
             IngestionResult with status and details.
         """
+        # Normalize arxiv_id for consistent tracking
+        normalized_id = arxiv_id.strip().lower()
+
+        # Check if already in progress (prevents duplicate requests)
+        if normalized_id in self._in_progress:
+            logger.warning(f"Paper {arxiv_id} is already being ingested, skipping")
+            return IngestionResult(
+                arxiv_id=arxiv_id,
+                title="",
+                chunk_count=0,
+                status="error",
+                error="Paper is already being ingested. Please wait for the current ingestion to complete.",
+            )
+
+        # Mark as in progress
+        self._in_progress.add(normalized_id)
+
         try:
             # Fetch paper metadata
             logger.info(f"Fetching paper: {arxiv_id}")
@@ -135,6 +154,10 @@ class IngestionService:
                 status="error",
                 error=str(e),
             )
+
+        finally:
+            # Always remove from in-progress set
+            self._in_progress.discard(normalized_id)
 
     async def ingest_papers(self, arxiv_ids: list[str]) -> BatchIngestionResult:
         """Ingest multiple papers by arXiv IDs.
