@@ -117,13 +117,15 @@ def create_router(user_storage: UserStoragePort, settings: Settings) -> APIRoute
             algorithm=settings.jwt_algorithm,
         )
 
-        # Set httpOnly cookie with environment-dependent secure flag
+        # Set httpOnly cookie with environment-dependent settings
+        # In production: secure=True, samesite="none" (required for cross-origin cookies)
+        # In development: secure=False, samesite="lax" (works for localhost)
         response.set_cookie(
             key="access_token",
             value=token,
             httponly=True,
             secure=settings.secure_cookies,
-            samesite="lax",
+            samesite="none" if settings.secure_cookies else "lax",
             max_age=settings.jwt_expire_minutes * 60,
         )
 
