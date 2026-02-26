@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000"]
     environment: Literal["development", "production"] = "development"
 
+    # Rate Limiting Configuration
+    rate_limit_query: str = "10/minute"  # Rate limit for /query endpoint
+    rate_limit_enabled: bool = True  # Enable/disable rate limiting
+
     # Auth Configuration
     jwt_secret_key: SecretStr = SecretStr("")
     jwt_algorithm: str = "HS256"

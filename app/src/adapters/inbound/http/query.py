@@ -1,10 +1,45 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
+from limits import parse
+from limits.aio.storage import MemoryStorage
+from limits.aio.strategies import MovingWindowRateLimiter
 from pydantic import BaseModel
+from slowapi.util import get_remote_address
 
 from src.application.query_service import QueryService
 from src.domain.entities.query import QueryRequest, QueryResponse
 from src.domain.ports.query_storage import QueryNotFoundError
+
+# Module-level rate limiter storage (shared across requests)
+_rate_limit_storage = MemoryStorage()
+_rate_limiter = MovingWindowRateLimiter(_rate_limit_storage)
+
+
+async def rate_limit_dependency(request: Request) -> None:
+    """Dependency to enforce rate limiting on the query endpoint.
+
+    This dependency checks if rate limiting is enabled and applies the
+    configured rate limit (default: 10 requests/minute per IP).
+
+    Raises:
+        HTTPException 429: If the rate limit is exceeded.
+    """
+    settings = getattr(request.app.state, "settings", None)
+
+    if not settings or not settings.rate_limit_enabled:
+        return
+
+    # Get client identifier for rate limiting
+    key = get_remote_address(request)
+    limit_string = settings.rate_limit_query
+
+    # Parse and check rate limit
+    rate_limit = parse(limit_string)
+    if not await _rate_limiter.hit(rate_limit, "query", key):
+        from slowapi.errors import RateLimitExceeded
+
+        # Raise the slowapi exception for consistent error handling
+        raise RateLimitExceeded(None)
 
 
 class QuerySummary(BaseModel):
@@ -31,11 +66,15 @@ def create_router(query_service: QueryService) -> APIRouter:
 
     Returns:
         Configured APIRouter.
+
+    Note:
+        Rate limiting is applied via slowapi middleware configured in main.py.
+        The /query POST endpoint is rate limited (default: 10/minute per IP).
     """
     router = APIRouter(prefix="/query", tags=["query"])
 
-    @router.post("", response_model=QueryResponse)
-    async def query(request: QueryRequest) -> QueryResponse:
+    @router.post("", response_model=QueryResponse, dependencies=[Depends(rate_limit_dependency)])
+    async def query(query_request: QueryRequest) -> QueryResponse:
         """Submit a question and receive an explained answer.
 
         The response includes:
@@ -43,8 +82,10 @@ def create_router(query_service: QueryService) -> APIRouter:
         - Retrieved chunks with relevance scores
         - Faithfulness verification with per-claim breakdown
         - Timing trace for the pipeline
+
+        Rate limited to prevent API abuse (default: 10 requests/minute per IP).
         """
-        return await query_service.query(request)
+        return await query_service.query(query_request)
 
     @router.get("/{query_id}/explanation", response_model=QueryResponse)
     async def get_explanation(query_id: str) -> QueryResponse:

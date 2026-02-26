@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from src.adapters.inbound.http import (
     auth,
@@ -250,6 +252,11 @@ def create_app(
         lifespan=lifespan,
     )
 
+    # Configure rate limiting exception handler
+    # Rate limiting is applied per-endpoint in query.py using the limits library
+    app.state.settings = settings  # Store settings for rate limit configuration access
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
     # Configure CORS
     app.add_middleware(
         CORSMiddleware,
@@ -262,17 +269,28 @@ def create_app(
     # Global exception handler for unhandled errors
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
-        """Handle unhandled exceptions with a structured error response."""
+        """Handle unhandled exceptions with a structured error response.
+
+        In production, error details are sanitized to prevent information leakage.
+        Full exception details are always logged server-side.
+        """
         logger.error(
             f"Unhandled exception: {exc}\n"
             f"Path: {request.url.path}\n"
             f"Traceback: {traceback.format_exc()}"
         )
+
+        # In production, don't expose exception details to clients
+        if settings.environment == "production":
+            message = "An unexpected error occurred. Please try again later."
+        else:
+            message = str(exc)
+
         return JSONResponse(
             status_code=500,
             content={
                 "error": "internal_error",
-                "message": str(exc),
+                "message": message,
                 "path": request.url.path,
             },
         )

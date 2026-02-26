@@ -98,10 +98,7 @@ class PostgresVectorStore(VectorStorePort):
                 pdf_url = _sanitize_text(first_chunk.metadata.get("pdf_url", ""))
                 authors = first_chunk.metadata.get("authors", [])
                 # Sanitize each author name
-                if isinstance(authors, list):
-                    authors = [_sanitize_text(a) for a in authors]
-                else:
-                    authors = []
+                authors = [_sanitize_text(a) for a in authors] if isinstance(authors, list) else []
                 abstract = _sanitize_text(first_chunk.metadata.get("abstract", ""))
 
                 await conn.execute(
