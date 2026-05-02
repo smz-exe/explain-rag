@@ -46,6 +46,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# generated
-src/api/model/
-src/api/queries/
+.env*.local
