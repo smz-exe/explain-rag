@@ -1,6 +1,11 @@
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+# Build-script policy (pnpm 11+ `allowBuilds`; replaces ignoredBuiltDependencies).
+# None of these need their postinstall scripts for dev, lint, typecheck, or build:
+# esbuild/msw come from orval; sharp/unrs-resolver were already ignored.
+allowBuilds:
+  esbuild: false
+  msw: false
+  sharp: false
+  unrs-resolver: false
 
 overrides:
   minimatch@<3.1.3: '>=3.1.3'
