@@ -1,0 +1,28 @@
+# Curated seed corpus for ExplainRAG.
+# Complements the interpretability/attention papers already in the store with
+# retrieval-augmented generation, LLM foundations, and mechanistic
+# interpretability classics. One arXiv ID per line; '#' starts a comment.
+#
+# Ingest with:
+#   uv run python -m src.adapters.inbound.cli.ingest --file seeds/papers.txt --env-file .env.production
+
+# Retrieval-augmented generation
+2005.11401  # Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+2004.04906  # Dense Passage Retrieval for Open-Domain Question Answering
+2112.04426  # Improving Language Models by Retrieving from Trillions of Tokens (RETRO)
+2208.03299  # Atlas: Few-shot Learning with Retrieval Augmented Language Models
+
+# LLM foundations & scaling
+1810.04805  # BERT: Pre-training of Deep Bidirectional Transformers
+2001.08361  # Scaling Laws for Neural Language Models
+2203.15556  # Training Compute-Optimal Large Language Models (Chinchilla)
+2203.02155  # Training Language Models to Follow Instructions (InstructGPT)
+2201.11903  # Chain-of-Thought Prompting Elicits Reasoning in LLMs
+2106.09685  # LoRA: Low-Rank Adaptation of Large Language Models
+
+# Mechanistic interpretability & attention analysis
+2211.00593  # Interpretability in the Wild: Indirect Object Identification (IOI)
+2202.05262  # Locating and Editing Factual Associations in GPT (ROME)
+2209.11895  # In-context Learning and Induction Heads
+1905.09418  # Analyzing Multi-Head Self-Attention (Voita et al.)
+1906.04341  # What Does BERT Look At? An Analysis of BERT's Attention
