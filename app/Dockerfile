@@ -13,15 +13,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv for fast Python package management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy dependency files
-COPY pyproject.toml .
+# Copy dependency files (lockfile pins exact versions for reproducible builds)
+COPY pyproject.toml uv.lock ./
 
 # Create virtual environment and install dependencies only (not the project itself)
 RUN uv venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Install dependencies (fastembed uses ONNX Runtime, no PyTorch needed)
-RUN uv sync --no-dev --no-install-project
+# Install dependencies from the lockfile (fastembed uses ONNX Runtime, no PyTorch needed)
+RUN uv sync --locked --no-dev --no-install-project
 
 # Clean up cache to reduce image size
 RUN rm -rf /root/.cache/uv /root/.cache/pip
