@@ -36,15 +36,14 @@ class Settings(BaseSettings):
     chunk_size: int = 1000
     chunk_overlap: int = 200
     default_top_k: int = 10
-    chroma_persist_dir: str = "./data/chroma"
     reranker_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"  # FastEmbed format
 
     # Storage Configuration
     sqlite_db_path: str = "./data/queries.db"
 
-    # Database Configuration (Supabase / PostgreSQL)
+    # Database Configuration (Supabase / PostgreSQL) — required
     # Format: postgresql://user:password@host:port/database
-    database_url: str = ""  # If empty, falls back to SQLite + ChromaDB
+    database_url: str = ""
     database_pool_min: int = 2
     database_pool_max: int = 10
 
@@ -99,6 +98,13 @@ class Settings(BaseSettings):
             raise ValueError(
                 "ANTHROPIC_API_KEY is required. "
                 "Get your API key from https://console.anthropic.com/"
+            )
+
+        # Validate database URL (PostgreSQL/pgvector is the only vector store)
+        if not self.database_url:
+            raise ValueError(
+                "DATABASE_URL is required (PostgreSQL with pgvector). "
+                "For local development, run 'supabase start' and use the local URL."
             )
 
         # Validate admin password hash

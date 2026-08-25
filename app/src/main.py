@@ -27,7 +27,6 @@ from src.adapters.outbound.anthropic_evaluator import AnthropicEvaluator
 from src.adapters.outbound.anthropic_faithfulness import AnthropicFaithfulness
 from src.adapters.outbound.anthropic_rag import AnthropicRAG
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
-from src.adapters.outbound.chroma_store import ChromaVectorStore
 from src.adapters.outbound.env_user_storage import EnvUserStorage
 from src.adapters.outbound.fastembed_embedding import FastEmbedEmbedding
 from src.adapters.outbound.fastembed_reranker import FastEmbedReranker
@@ -35,7 +34,6 @@ from src.adapters.outbound.hdbscan_clusterer import HDBSCANClusterer
 from src.adapters.outbound.postgres_query_storage import PostgresQueryStorage
 from src.adapters.outbound.postgres_vector_store import PostgresVectorStore
 from src.adapters.outbound.sqlite_coordinates_storage import SQLiteCoordinatesStorage
-from src.adapters.outbound.sqlite_query_storage import SQLiteQueryStorage
 from src.adapters.outbound.umap_reducer import UMAPReducer
 from src.application.coordinates_service import CoordinatesService
 from src.application.ingestion_service import IngestionService
@@ -80,11 +78,11 @@ def create_app(
 
     Args:
         embedding: Embedding adapter (default: FastEmbedEmbedding)
-        vector_store: Vector store adapter (default: ChromaVectorStore)
+        vector_store: Vector store adapter (default: PostgresVectorStore)
         llm: LLM adapter (default: AnthropicRAG)
         faithfulness: Faithfulness adapter (default: AnthropicFaithfulness)
         reranker: Reranker adapter (default: FastEmbedReranker)
-        query_storage: Query storage adapter (default: SQLiteQueryStorage)
+        query_storage: Query storage adapter (default: PostgresQueryStorage)
         coordinates_storage: Coordinates storage adapter (default: SQLiteCoordinatesStorage)
         evaluator: Evaluation adapter (default: AnthropicEvaluator)
         dim_reducer: Dimensionality reduction adapter (default: UMAPReducer)
@@ -108,16 +106,12 @@ def create_app(
         )
 
     if vector_store is None:
-        if settings.database_url:
-            logger.info("Initializing PostgreSQL vector store")
-            vector_store = PostgresVectorStore(
-                database_url=settings.database_url,
-                pool_min_size=settings.database_pool_min,
-                pool_max_size=settings.database_pool_max,
-            )
-        else:
-            logger.info(f"Initializing ChromaDB vector store: {settings.chroma_persist_dir}")
-            vector_store = ChromaVectorStore(persist_dir=settings.chroma_persist_dir)
+        logger.info("Initializing PostgreSQL vector store")
+        vector_store = PostgresVectorStore(
+            database_url=settings.database_url,
+            pool_min_size=settings.database_pool_min,
+            pool_max_size=settings.database_pool_max,
+        )
 
     logger.info("Initializing arXiv paper source")
     paper_source = ArxivPaperSource()
@@ -151,16 +145,12 @@ def create_app(
         )
 
     if query_storage is None:
-        if settings.database_url:
-            logger.info("Initializing PostgreSQL query storage")
-            query_storage = PostgresQueryStorage(
-                database_url=settings.database_url,
-                pool_min_size=settings.database_pool_min,
-                pool_max_size=settings.database_pool_max,
-            )
-        else:
-            logger.info(f"Initializing SQLite query storage: {settings.sqlite_db_path}")
-            query_storage = SQLiteQueryStorage(db_path=settings.sqlite_db_path)
+        logger.info("Initializing PostgreSQL query storage")
+        query_storage = PostgresQueryStorage(
+            database_url=settings.database_url,
+            pool_min_size=settings.database_pool_min,
+            pool_max_size=settings.database_pool_max,
+        )
 
     if coordinates_storage is None:
         logger.info(f"Initializing coordinates storage: {settings.sqlite_db_path}")

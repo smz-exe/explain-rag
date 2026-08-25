@@ -17,6 +17,9 @@ os.environ.setdefault("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2
 os.environ.setdefault("RERANKER_MODEL", "Xenova/ms-marco-MiniLM-L-6-v2")
 # Disable model preloading during tests (tests use mock adapters)
 os.environ.setdefault("PRELOAD_MODELS", "false")
+# Settings requires DATABASE_URL; this dummy is never connected to by unit tests
+# (the PostgreSQL adapter tests skip unless it points at the local Supabase port)
+os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
 
 from datetime import datetime
 
