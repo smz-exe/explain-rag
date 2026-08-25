@@ -26,23 +26,36 @@ export function useAuth(): UseAuthReturn {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const checkAuth = useCallback(async () => {
-    try {
-      const response = await getCurrentUserAuthMeGet();
-      // custom-fetch throws on non-200, so we can safely narrow
-      if (response.status === 200) {
-        setUser(response.data);
+  const fetchCurrentUser =
+    useCallback(async (): Promise<UserResponse | null> => {
+      try {
+        const response = await getCurrentUserAuthMeGet();
+        // custom-fetch throws on non-200, so we can safely narrow
+        return response.status === 200 ? response.data : null;
+      } catch {
+        return null;
       }
-    } catch {
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    }, []);
+
+  const checkAuth = useCallback(async () => {
+    const currentUser = await fetchCurrentUser();
+    setUser(currentUser);
+    setIsLoading(false);
+  }, [fetchCurrentUser]);
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    // State updates happen in the promise callback, never synchronously
+    // in the effect body (react-hooks/set-state-in-effect)
+    let cancelled = false;
+    fetchCurrentUser().then((currentUser) => {
+      if (cancelled) return;
+      setUser(currentUser);
+      setIsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchCurrentUser]);
 
   const login = async (data: LoginRequest) => {
     await loginAuthLoginPost(data);
