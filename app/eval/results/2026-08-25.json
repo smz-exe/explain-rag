@@ -1,0 +1,680 @@
+{
+  "metadata": {
+    "run_at": "2026-08-25T10:57:23.996206+00:00",
+    "question_set_generated_at": "2026-08-25T10:41:53.534017+00:00",
+    "model": "claude-sonnet-4-5-20250929",
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "reranker_model": "Xenova/ms-marco-MiniLM-L-6-v2",
+    "top_k": 10
+  },
+  "summary": {
+    "n_questions": 28,
+    "top_k": 10,
+    "retrieval": {
+      "hit_rate_top_k": 0.8214285714285714,
+      "vector": {
+        "mrr": 0.5605017006802722,
+        "hit_rate_at_1": 0.4642857142857143,
+        "hit_rate_at_3": 0.6071428571428571
+      },
+      "reranked": {
+        "mrr": 0.6767857142857142,
+        "hit_rate_at_1": 0.6071428571428571,
+        "hit_rate_at_3": 0.7142857142857143
+      }
+    },
+    "displacement": {
+      "mean": 2.914285714285714,
+      "max": 9
+    },
+    "insufficient_context_count": 4,
+    "timings_ms": {
+      "embedding": {
+        "median": 13.677270500920713,
+        "p90": 22.965104496688582
+      },
+      "retrieval": {
+        "median": 204.92037550138775,
+        "p90": 360.8377000084147
+      },
+      "reranking": {
+        "median": 141.88729198940564,
+        "p90": 228.93960381916256
+      },
+      "generation": {
+        "median": 8297.821561995079,
+        "p90": 10770.778312589391
+      },
+      "faithfulness": {
+        "median": 23526.871770518483,
+        "p90": 30367.55600818724
+      },
+      "total": {
+        "median": 33641.413250006735,
+        "p90": 41059.919500217075
+      }
+    },
+    "signals": {
+      "faithfulness_mean": 0.8297810711206333
+    }
+  },
+  "errors": [],
+  "records": [
+    {
+      "id": "q-1706.03762v7",
+      "arxiv_id": "1706.03762v7",
+      "paper_id": "900f3c8b-8b3e-4f4e-b4ae-6640d54d1b9c",
+      "question": "How can neural networks process sequential data without using recurrent or convolutional layers?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 1.8,
+      "max_displacement": 5,
+      "n_citations": 6,
+      "n_claims": 10,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 124.22962501295842,
+        "retrieval_ms": 1491.8263749859761,
+        "reranking_ms": 279.00704101193696,
+        "generation_ms": 6063.505458994769,
+        "faithfulness_ms": 16823.184665990993,
+        "total_ms": 24781.79020798416
+      }
+    },
+    {
+      "id": "q-1810.04805v2",
+      "arxiv_id": "1810.04805v2",
+      "paper_id": "0339d288-ee86-482a-92cb-349dc0519fd0",
+      "question": "How can deep neural network language models be improved by training them to understand context from both directions simultaneously?",
+      "insufficient_context": false,
+      "vector_hit_rank": 7,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 3.8,
+      "max_displacement": 8,
+      "n_citations": 4,
+      "n_claims": 14,
+      "faithfulness_score": 0.8571428571428571,
+      "timings": {
+        "embedding_ms": 119.69500000122935,
+        "retrieval_ms": 1437.2185000102036,
+        "reranking_ms": 256.6484590061009,
+        "generation_ms": 7386.601250007516,
+        "faithfulness_ms": 18484.614082990447,
+        "total_ms": 27684.871750010643
+      }
+    },
+    {
+      "id": "q-1902.10186v3",
+      "arxiv_id": "1902.10186v3",
+      "paper_id": "7315c477-d67e-4466-b3ba-6293bcdd758f",
+      "question": "Do learned attention weights in neural networks reliably indicate which input features are most important for making predictions?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 3.6,
+      "max_displacement": 7,
+      "n_citations": 8,
+      "n_claims": 9,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 10.793833993375301,
+        "retrieval_ms": 161.16333298850805,
+        "reranking_ms": 118.86583300656639,
+        "generation_ms": 7180.538249987876,
+        "faithfulness_ms": 16268.058415997075,
+        "total_ms": 23739.462541998364
+      }
+    },
+    {
+      "id": "q-1905.09418v2",
+      "arxiv_id": "1905.09418v2",
+      "paper_id": "298663f3-946e-48c5-82d9-200490090a06",
+      "question": "How important are different attention components in transformer models and can some be removed without significantly impacting performance?",
+      "insufficient_context": false,
+      "vector_hit_rank": 6,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 3.2,
+      "max_displacement": 9,
+      "n_citations": 6,
+      "n_claims": 19,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 9.361500007798895,
+        "retrieval_ms": 203.94312500138767,
+        "reranking_ms": 142.312708980171,
+        "generation_ms": 8347.57383298711,
+        "faithfulness_ms": 25406.929332995787,
+        "total_ms": 34110.17366699525
+      }
+    },
+    {
+      "id": "q-1906.02715v2",
+      "arxiv_id": "1906.02715v2",
+      "paper_id": "e3df93c4-0b93-49fc-bbca-00f6cdaf88df",
+      "question": "How can the geometric structure of contextualized word representations in transformer-based language models be analyzed and quantified?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 2.0,
+      "max_displacement": 6,
+      "n_citations": 10,
+      "n_claims": 19,
+      "faithfulness_score": 0.9473684210526315,
+      "timings": {
+        "embedding_ms": 13.751541002420709,
+        "retrieval_ms": 204.7715839871671,
+        "reranking_ms": 122.10191701888107,
+        "generation_ms": 9226.857375004329,
+        "faithfulness_ms": 24965.23045899812,
+        "total_ms": 34532.782499998575
+      }
+    },
+    {
+      "id": "q-1906.04341v1",
+      "arxiv_id": "1906.04341v1",
+      "paper_id": "563457f5-aee6-4a4f-bca9-852cc30b6d21",
+      "question": "How does the self-attention mechanism in transformer-based language models focus on different types of linguistic information during processing?",
+      "insufficient_context": false,
+      "vector_hit_rank": 8,
+      "reranked_hit_rank": 6,
+      "mean_displacement": 3.0,
+      "max_displacement": 7,
+      "n_citations": 7,
+      "n_claims": 21,
+      "faithfulness_score": 0.9285714285714286,
+      "timings": {
+        "embedding_ms": 13.213625003118068,
+        "retrieval_ms": 132.67395802540705,
+        "reranking_ms": 157.62833302142099,
+        "generation_ms": 10237.206916004652,
+        "faithfulness_ms": 30689.161791990045,
+        "total_ms": 41229.96433300432
+      }
+    },
+    {
+      "id": "q-1908.04626v2",
+      "arxiv_id": "1908.04626v2",
+      "paper_id": "577f903c-a19e-4d09-80f2-1803353e9e7a",
+      "question": "Can attention mechanisms in neural networks be used to reliably explain model predictions and interpretability?",
+      "insufficient_context": false,
+      "vector_hit_rank": 2,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 3.2,
+      "max_displacement": 6,
+      "n_citations": 10,
+      "n_claims": 17,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 10.834665998117998,
+        "retrieval_ms": 189.00183399091475,
+        "reranking_ms": 88.89720900333486,
+        "generation_ms": 9375.90804201318,
+        "faithfulness_ms": 22250.355041993316,
+        "total_ms": 31915.10237500188
+      }
+    },
+    {
+      "id": "q-1909.00015v2",
+      "arxiv_id": "1909.00015v2",
+      "paper_id": "1e28360b-7ea3-456e-bec2-35f4500b9874",
+      "question": "How can attention mechanisms in neural networks be made more efficient by dynamically adjusting which positions to focus on?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 5,
+      "mean_displacement": 3.6,
+      "max_displacement": 6,
+      "n_citations": 8,
+      "n_claims": 21,
+      "faithfulness_score": 0.8333333333333334,
+      "timings": {
+        "embedding_ms": 22.530666989041492,
+        "retrieval_ms": 216.30349999759346,
+        "reranking_ms": 127.43283400777727,
+        "generation_ms": 7808.903500001179,
+        "faithfulness_ms": 31351.229542022338,
+        "total_ms": 39526.479874999495
+      }
+    },
+    {
+      "id": "q-2001.08361v1",
+      "arxiv_id": "2001.08361v1",
+      "paper_id": "bb57a732-c93f-46cc-a33e-53f8a55004a6",
+      "question": "How does the performance of transformer-based language models change as model size and training data increase?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 2.8,
+      "max_displacement": 7,
+      "n_citations": 9,
+      "n_claims": 18,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 18.34024998242967,
+        "retrieval_ms": 129.5834999764338,
+        "reranking_ms": 112.62837500544265,
+        "generation_ms": 10737.098874989897,
+        "faithfulness_ms": 30229.724957986036,
+        "total_ms": 41227.442333998624
+      }
+    },
+    {
+      "id": "q-2004.04906v3",
+      "arxiv_id": "2004.04906v3",
+      "paper_id": "eb9a32ad-f1c6-4ebe-8f37-01b1e15cc34f",
+      "question": "How can neural networks be used to retrieve relevant text passages for answering questions when the answer could be anywhere in a large collection of documents?",
+      "insufficient_context": false,
+      "vector_hit_rank": 3,
+      "reranked_hit_rank": 2,
+      "mean_displacement": 2.4,
+      "max_displacement": 6,
+      "n_citations": 9,
+      "n_claims": 20,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 15.583875006996095,
+        "retrieval_ms": 246.00962499971502,
+        "reranking_ms": 149.34645799803548,
+        "generation_ms": 8248.069291003048,
+        "faithfulness_ms": 25905.54800000973,
+        "total_ms": 34564.61266599945
+      }
+    },
+    {
+      "id": "q-2005.11401v4",
+      "arxiv_id": "2005.11401v4",
+      "paper_id": "ffac4471-cc0d-4bc9-9b12-66e77ab0d8f3",
+      "question": "How can neural language models be enhanced by incorporating external information sources to improve performance on tasks that require factual knowledge?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 3.8,
+      "max_displacement": 9,
+      "n_citations": 6,
+      "n_claims": 22,
+      "faithfulness_score": 0.9545454545454546,
+      "timings": {
+        "embedding_ms": 12.010166014079005,
+        "retrieval_ms": 237.11550000007264,
+        "reranking_ms": 159.01133400620893,
+        "generation_ms": 10849.36366698821,
+        "faithfulness_ms": 26096.332124987384,
+        "total_ms": 37353.88508299366
+      }
+    },
+    {
+      "id": "q-2005.14165v4",
+      "arxiv_id": "2005.14165v4",
+      "paper_id": "78278c96-2897-45df-90ed-8660499ba21b",
+      "question": "How do large neural language models perform on downstream tasks when given only a small number of training examples?",
+      "insufficient_context": true,
+      "vector_hit_rank": null,
+      "reranked_hit_rank": null,
+      "mean_displacement": 3.2,
+      "max_displacement": 8,
+      "n_citations": 0,
+      "n_claims": 0,
+      "faithfulness_score": 0.0,
+      "timings": {
+        "embedding_ms": 13.602999999420717,
+        "retrieval_ms": 140.1712080114521,
+        "reranking_ms": null,
+        "generation_ms": 5078.129125002306,
+        "faithfulness_ms": 0.0,
+        "total_ms": 5231.903333013179
+      }
+    },
+    {
+      "id": "q-2012.09838v2",
+      "arxiv_id": "2012.09838v2",
+      "paper_id": "1547f70d-8e90-4c1d-87e2-01ab215105a6",
+      "question": "What methods exist for understanding how neural language models make predictions besides visualizing attention weights?",
+      "insufficient_context": false,
+      "vector_hit_rank": null,
+      "reranked_hit_rank": null,
+      "mean_displacement": 2.2,
+      "max_displacement": 6,
+      "n_citations": 7,
+      "n_claims": 15,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 7.887499989010394,
+        "retrieval_ms": 134.35833298717625,
+        "reranking_ms": 141.46187499864027,
+        "generation_ms": 7459.2036249814555,
+        "faithfulness_ms": 23376.763208012562,
+        "total_ms": 31119.77212500642
+      }
+    },
+    {
+      "id": "q-2106.09685v2",
+      "arxiv_id": "2106.09685v2",
+      "paper_id": "f7759fb7-bd12-404d-b005-99df806cb61d",
+      "question": "How can I efficiently fine-tune large language models without updating all parameters?",
+      "insufficient_context": true,
+      "vector_hit_rank": null,
+      "reranked_hit_rank": null,
+      "mean_displacement": 2.4,
+      "max_displacement": 9,
+      "n_citations": 0,
+      "n_claims": 0,
+      "faithfulness_score": 0.0,
+      "timings": {
+        "embedding_ms": 11.357375013176352,
+        "retrieval_ms": 133.61129100667313,
+        "reranking_ms": null,
+        "generation_ms": 5535.231334011769,
+        "faithfulness_ms": 0.0,
+        "total_ms": 5680.200000031618
+      }
+    },
+    {
+      "id": "q-2112.04426v3",
+      "arxiv_id": "2112.04426v3",
+      "paper_id": "db8fed6a-fe07-458c-a9d3-8cb5d7101d3a",
+      "question": "How can accessing massive amounts of external text data during inference improve the performance of neural language models?",
+      "insufficient_context": false,
+      "vector_hit_rank": 3,
+      "reranked_hit_rank": 2,
+      "mean_displacement": 3.0,
+      "max_displacement": 9,
+      "n_citations": 9,
+      "n_claims": 20,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 18.628999998327345,
+        "retrieval_ms": 129.33083402458578,
+        "reranking_ms": 199.6371670102235,
+        "generation_ms": 6830.085583991604,
+        "faithfulness_ms": 26436.27100001322,
+        "total_ms": 33614.013374986826
+      }
+    },
+    {
+      "id": "q-2201.11903v6",
+      "arxiv_id": "2201.11903v6",
+      "paper_id": "95e7a576-7032-439a-8a2f-35bcbf3b2b1b",
+      "question": "How can we improve the ability of large language models to perform multi-step reasoning tasks by modifying the prompting strategy?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 2.2,
+      "max_displacement": 5,
+      "n_citations": 10,
+      "n_claims": 19,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 18.135666992748156,
+        "retrieval_ms": 234.30320800980553,
+        "reranking_ms": 135.49241700093262,
+        "generation_ms": 9257.91862499318,
+        "faithfulness_ms": 26091.636375000235,
+        "total_ms": 35737.57649998879
+      }
+    },
+    {
+      "id": "q-2202.05262v5",
+      "arxiv_id": "2202.05262v5",
+      "paper_id": "997764fc-44f6-47a3-a311-520560fdb5fb",
+      "question": "How can we identify and modify the internal representations of facts stored in large language models?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 2.0,
+      "max_displacement": 8,
+      "n_citations": 8,
+      "n_claims": 11,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 18.74395800405182,
+        "retrieval_ms": 353.44450001139194,
+        "reranking_ms": 172.78850000002421,
+        "generation_ms": 7723.329000000376,
+        "faithfulness_ms": 27884.096583002247,
+        "total_ms": 36152.46404201025
+      }
+    },
+    {
+      "id": "q-2203.02155v1",
+      "arxiv_id": "2203.02155v1",
+      "paper_id": "14f3e677-ff04-4a52-b07f-442c1b9aea80",
+      "question": "How can neural networks for natural language generation be trained to better align with human preferences and intentions?",
+      "insufficient_context": false,
+      "vector_hit_rank": 4,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 3.2,
+      "max_displacement": 5,
+      "n_citations": 9,
+      "n_claims": 15,
+      "faithfulness_score": 0.9333333333333333,
+      "timings": {
+        "embedding_ms": 20.47320900601335,
+        "retrieval_ms": 246.8149999913294,
+        "reranking_ms": 155.0871660001576,
+        "generation_ms": 6706.739499990363,
+        "faithfulness_ms": 18333.630207984243,
+        "total_ms": 25462.809999997262
+      }
+    },
+    {
+      "id": "q-2203.15556v1",
+      "arxiv_id": "2203.15556v1",
+      "paper_id": "9032ea01-ee84-4742-b539-e3b25c0e85c5",
+      "question": "How should model size and training data be scaled together to achieve the best performance for a fixed computational budget?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 3.4,
+      "max_displacement": 7,
+      "n_citations": 8,
+      "n_claims": 17,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 23.97879201453179,
+        "retrieval_ms": 268.42300000134856,
+        "reranking_ms": 134.12375000189058,
+        "generation_ms": 9884.806458983803,
+        "faithfulness_ms": 26766.86649999465,
+        "total_ms": 37078.28741701087
+      }
+    },
+    {
+      "id": "q-2208.03299v3",
+      "arxiv_id": "2208.03299v3",
+      "paper_id": "6cd066e7-d5f6-42d1-823e-616b8b4e3d9e",
+      "question": "How can language models be improved for tasks with limited training examples by incorporating external knowledge?",
+      "insufficient_context": true,
+      "vector_hit_rank": null,
+      "reranked_hit_rank": null,
+      "mean_displacement": 2.4,
+      "max_displacement": 7,
+      "n_citations": 0,
+      "n_claims": 0,
+      "faithfulness_score": 0.0,
+      "timings": {
+        "embedding_ms": 21.791417006170377,
+        "retrieval_ms": 378.08850000146776,
+        "reranking_ms": null,
+        "generation_ms": 4976.315458014142,
+        "faithfulness_ms": 0.0,
+        "total_ms": 5376.19537502178
+      }
+    },
+    {
+      "id": "q-2209.11895v1",
+      "arxiv_id": "2209.11895v1",
+      "paper_id": "c83adacb-f625-4c12-ae23-fc948c6a8ce7",
+      "question": "How do transformer models use previous examples provided in the prompt to improve their predictions on new tasks?",
+      "insufficient_context": false,
+      "vector_hit_rank": 2,
+      "reranked_hit_rank": 4,
+      "mean_displacement": 3.4,
+      "max_displacement": 8,
+      "n_citations": 8,
+      "n_claims": 18,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 17.340000020340085,
+        "retrieval_ms": 240.77508301706985,
+        "reranking_ms": 126.5882920124568,
+        "generation_ms": 9672.56033301237,
+        "faithfulness_ms": 30930.79349998152,
+        "total_ms": 40988.12400002498
+      }
+    },
+    {
+      "id": "q-2211.00593v1",
+      "arxiv_id": "2211.00593v1",
+      "paper_id": "c6faa9a3-27cc-4f46-bfcf-3f13cbafada8",
+      "question": "How can we mechanistically understand how language models determine which entity receives an action in a sentence?",
+      "insufficient_context": true,
+      "vector_hit_rank": null,
+      "reranked_hit_rank": null,
+      "mean_displacement": 2.2,
+      "max_displacement": 6,
+      "n_citations": 0,
+      "n_claims": 0,
+      "faithfulness_score": 0.0,
+      "timings": {
+        "embedding_ms": 13.273834018036723,
+        "retrieval_ms": 155.19525000127032,
+        "reranking_ms": null,
+        "generation_ms": 5741.84562501614,
+        "faithfulness_ms": 0.0,
+        "total_ms": 5910.314709035447
+      }
+    },
+    {
+      "id": "q-2303.06296v2",
+      "arxiv_id": "2303.06296v2",
+      "paper_id": "67532e78-2b65-4808-838d-eb398d5240b2",
+      "question": "What causes instability during the training process of large language models that use self-attention mechanisms?",
+      "insufficient_context": false,
+      "vector_hit_rank": 7,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 4.4,
+      "max_displacement": 8,
+      "n_citations": 6,
+      "n_claims": 17,
+      "faithfulness_score": 0.8823529411764706,
+      "timings": {
+        "embedding_ms": 5.150916986167431,
+        "retrieval_ms": 244.63520798599347,
+        "reranking_ms": 94.04649998759851,
+        "generation_ms": 9922.654875001172,
+        "faithfulness_ms": 21577.32016700902,
+        "total_ms": 31843.851582991192
+      }
+    },
+    {
+      "id": "q-2304.01373v2",
+      "arxiv_id": "2304.01373v2",
+      "paper_id": "ae3ef63a-da41-4011-9ebc-26e36915a0c0",
+      "question": "What tools or resources are available for studying how neural language models behave during the training process and at different model sizes?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 3.0,
+      "max_displacement": 7,
+      "n_citations": 8,
+      "n_claims": 12,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 5.32195798587054,
+        "retrieval_ms": 129.0019579755608,
+        "reranking_ms": 241.49779102299362,
+        "generation_ms": 7663.894458004506,
+        "faithfulness_ms": 17952.260833000764,
+        "total_ms": 25992.056167015107
+      }
+    },
+    {
+      "id": "q-2304.14997v4",
+      "arxiv_id": "2304.14997v4",
+      "paper_id": "e59601a1-742e-4e91-8d81-5a7f879cb345",
+      "question": "How can we automatically identify the internal components and pathways in neural networks that are responsible for specific behaviors or capabilities?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 2.8,
+      "max_displacement": 9,
+      "n_citations": 7,
+      "n_claims": 20,
+      "faithfulness_score": 0.925,
+      "timings": {
+        "embedding_ms": 17.869749979581684,
+        "retrieval_ms": 147.11541699944064,
+        "reranking_ms": 136.6871249920223,
+        "generation_ms": 15294.902458001161,
+        "faithfulness_ms": 24604.616541008,
+        "total_ms": 40201.239291985985
+      }
+    },
+    {
+      "id": "q-2309.08600v3",
+      "arxiv_id": "2309.08600v3",
+      "paper_id": "439d47f9-8ada-477f-9400-0adf047e673c",
+      "question": "How can we extract meaningful and understandable representations from the internal activations of large language models?",
+      "insufficient_context": false,
+      "vector_hit_rank": 5,
+      "reranked_hit_rank": 3,
+      "mean_displacement": 3.8,
+      "max_displacement": 6,
+      "n_citations": 10,
+      "n_claims": 18,
+      "faithfulness_score": 0.9722222222222222,
+      "timings": {
+        "embedding_ms": 11.699541006237268,
+        "retrieval_ms": 205.0691670156084,
+        "reranking_ms": 152.8765409893822,
+        "generation_ms": 8916.858375014272,
+        "faithfulness_ms": 23278.902749996632,
+        "total_ms": 32565.471334004542
+      }
+    },
+    {
+      "id": "q-2601.03220v1",
+      "arxiv_id": "2601.03220v1",
+      "paper_id": "6de6bb80-a02a-4469-9e82-d7299095fef7",
+      "question": "How should we reconsider traditional information-theoretic measures when dealing with agents that have limited computational resources?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 2.8,
+      "max_displacement": 9,
+      "n_citations": 8,
+      "n_claims": 15,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 8.124374988256022,
+        "retrieval_ms": 236.19020901969634,
+        "reranking_ms": 190.02720798016526,
+        "generation_ms": 19245.841541996924,
+        "faithfulness_ms": 21621.997292008018,
+        "total_ms": 41302.24079199252
+      }
+    },
+    {
+      "id": "q-2602.15029v1",
+      "arxiv_id": "2602.15029v1",
+      "paper_id": "b9c3cc0e-ba39-42cc-a763-f25e0d0dfe3f",
+      "question": "How do statistical patterns in linguistic data influence the spatial organization of neural network embeddings?",
+      "insufficient_context": false,
+      "vector_hit_rank": 1,
+      "reranked_hit_rank": 1,
+      "mean_displacement": 2.0,
+      "max_displacement": 5,
+      "n_citations": 7,
+      "n_claims": 16,
+      "faithfulness_score": 1.0,
+      "timings": {
+        "embedding_ms": 9.842125000432134,
+        "retrieval_ms": 164.60670801461674,
+        "reranking_ms": 123.57870797859505,
+        "generation_ms": 9693.7337499985,
+        "faithfulness_ms": 23676.980333024403,
+        "total_ms": 33668.813125026645
+      }
+    }
+  ]
+}

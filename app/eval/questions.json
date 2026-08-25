@@ -1,0 +1,203 @@
+{
+  "generated_at": "2026-08-25T10:41:53.534017+00:00",
+  "generator_model": "claude-sonnet-4-5-20250929",
+  "procedure": "One question per ingested paper, generated from its abstract with the prompt in generate_questions.py; papers ordered by arXiv ID. The source paper_id is the retrieval ground-truth label.",
+  "questions": [
+    {
+      "id": "q-1706.03762v7",
+      "paper_id": "900f3c8b-8b3e-4f4e-b4ae-6640d54d1b9c",
+      "arxiv_id": "1706.03762v7",
+      "title": "Attention Is All You Need",
+      "question": "How can neural networks process sequential data without using recurrent or convolutional layers?"
+    },
+    {
+      "id": "q-1810.04805v2",
+      "paper_id": "0339d288-ee86-482a-92cb-349dc0519fd0",
+      "arxiv_id": "1810.04805v2",
+      "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      "question": "How can deep neural network language models be improved by training them to understand context from both directions simultaneously?"
+    },
+    {
+      "id": "q-1902.10186v3",
+      "paper_id": "7315c477-d67e-4466-b3ba-6293bcdd758f",
+      "arxiv_id": "1902.10186v3",
+      "title": "Attention is not Explanation",
+      "question": "Do learned attention weights in neural networks reliably indicate which input features are most important for making predictions?"
+    },
+    {
+      "id": "q-1905.09418v2",
+      "paper_id": "298663f3-946e-48c5-82d9-200490090a06",
+      "arxiv_id": "1905.09418v2",
+      "title": "Analyzing Multi-Head Self-Attention: Specialized Heads Do the Heavy Lifting, the Rest Can Be Pruned",
+      "question": "How important are different attention components in transformer models and can some be removed without significantly impacting performance?"
+    },
+    {
+      "id": "q-1906.02715v2",
+      "paper_id": "e3df93c4-0b93-49fc-bbca-00f6cdaf88df",
+      "arxiv_id": "1906.02715v2",
+      "title": "Visualizing and Measuring the Geometry of BERT",
+      "question": "How can the geometric structure of contextualized word representations in transformer-based language models be analyzed and quantified?"
+    },
+    {
+      "id": "q-1906.04341v1",
+      "paper_id": "563457f5-aee6-4a4f-bca9-852cc30b6d21",
+      "arxiv_id": "1906.04341v1",
+      "title": "What Does BERT Look At? An Analysis of BERT's Attention",
+      "question": "How does the self-attention mechanism in transformer-based language models focus on different types of linguistic information during processing?"
+    },
+    {
+      "id": "q-1908.04626v2",
+      "paper_id": "577f903c-a19e-4d09-80f2-1803353e9e7a",
+      "arxiv_id": "1908.04626v2",
+      "title": "Attention is not not Explanation",
+      "question": "Can attention mechanisms in neural networks be used to reliably explain model predictions and interpretability?"
+    },
+    {
+      "id": "q-1909.00015v2",
+      "paper_id": "1e28360b-7ea3-456e-bec2-35f4500b9874",
+      "arxiv_id": "1909.00015v2",
+      "title": "Adaptively Sparse Transformers",
+      "question": "How can attention mechanisms in neural networks be made more efficient by dynamically adjusting which positions to focus on?"
+    },
+    {
+      "id": "q-2001.08361v1",
+      "paper_id": "bb57a732-c93f-46cc-a33e-53f8a55004a6",
+      "arxiv_id": "2001.08361v1",
+      "title": "Scaling Laws for Neural Language Models",
+      "question": "How does the performance of transformer-based language models change as model size and training data increase?"
+    },
+    {
+      "id": "q-2004.04906v3",
+      "paper_id": "eb9a32ad-f1c6-4ebe-8f37-01b1e15cc34f",
+      "arxiv_id": "2004.04906v3",
+      "title": "Dense Passage Retrieval for Open-Domain Question Answering",
+      "question": "How can neural networks be used to retrieve relevant text passages for answering questions when the answer could be anywhere in a large collection of documents?"
+    },
+    {
+      "id": "q-2005.11401v4",
+      "paper_id": "ffac4471-cc0d-4bc9-9b12-66e77ab0d8f3",
+      "arxiv_id": "2005.11401v4",
+      "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+      "question": "How can neural language models be enhanced by incorporating external information sources to improve performance on tasks that require factual knowledge?"
+    },
+    {
+      "id": "q-2005.14165v4",
+      "paper_id": "78278c96-2897-45df-90ed-8660499ba21b",
+      "arxiv_id": "2005.14165v4",
+      "title": "Language Models are Few-Shot Learners",
+      "question": "How do large neural language models perform on downstream tasks when given only a small number of training examples?"
+    },
+    {
+      "id": "q-2012.09838v2",
+      "paper_id": "1547f70d-8e90-4c1d-87e2-01ab215105a6",
+      "arxiv_id": "2012.09838v2",
+      "title": "Transformer Interpretability Beyond Attention Visualization",
+      "question": "What methods exist for understanding how neural language models make predictions besides visualizing attention weights?"
+    },
+    {
+      "id": "q-2106.09685v2",
+      "paper_id": "f7759fb7-bd12-404d-b005-99df806cb61d",
+      "arxiv_id": "2106.09685v2",
+      "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+      "question": "How can I efficiently fine-tune large language models without updating all parameters?"
+    },
+    {
+      "id": "q-2112.04426v3",
+      "paper_id": "db8fed6a-fe07-458c-a9d3-8cb5d7101d3a",
+      "arxiv_id": "2112.04426v3",
+      "title": "Improving language models by retrieving from trillions of tokens",
+      "question": "How can accessing massive amounts of external text data during inference improve the performance of neural language models?"
+    },
+    {
+      "id": "q-2201.11903v6",
+      "paper_id": "95e7a576-7032-439a-8a2f-35bcbf3b2b1b",
+      "arxiv_id": "2201.11903v6",
+      "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+      "question": "How can we improve the ability of large language models to perform multi-step reasoning tasks by modifying the prompting strategy?"
+    },
+    {
+      "id": "q-2202.05262v5",
+      "paper_id": "997764fc-44f6-47a3-a311-520560fdb5fb",
+      "arxiv_id": "2202.05262v5",
+      "title": "Locating and Editing Factual Associations in GPT",
+      "question": "How can we identify and modify the internal representations of facts stored in large language models?"
+    },
+    {
+      "id": "q-2203.02155v1",
+      "paper_id": "14f3e677-ff04-4a52-b07f-442c1b9aea80",
+      "arxiv_id": "2203.02155v1",
+      "title": "Training language models to follow instructions with human feedback",
+      "question": "How can neural networks for natural language generation be trained to better align with human preferences and intentions?"
+    },
+    {
+      "id": "q-2203.15556v1",
+      "paper_id": "9032ea01-ee84-4742-b539-e3b25c0e85c5",
+      "arxiv_id": "2203.15556v1",
+      "title": "Training Compute-Optimal Large Language Models",
+      "question": "How should model size and training data be scaled together to achieve the best performance for a fixed computational budget?"
+    },
+    {
+      "id": "q-2208.03299v3",
+      "paper_id": "6cd066e7-d5f6-42d1-823e-616b8b4e3d9e",
+      "arxiv_id": "2208.03299v3",
+      "title": "Atlas: Few-shot Learning with Retrieval Augmented Language Models",
+      "question": "How can language models be improved for tasks with limited training examples by incorporating external knowledge?"
+    },
+    {
+      "id": "q-2209.11895v1",
+      "paper_id": "c83adacb-f625-4c12-ae23-fc948c6a8ce7",
+      "arxiv_id": "2209.11895v1",
+      "title": "In-context Learning and Induction Heads",
+      "question": "How do transformer models use previous examples provided in the prompt to improve their predictions on new tasks?"
+    },
+    {
+      "id": "q-2211.00593v1",
+      "paper_id": "c6faa9a3-27cc-4f46-bfcf-3f13cbafada8",
+      "arxiv_id": "2211.00593v1",
+      "title": "Interpretability in the Wild: a Circuit for Indirect Object Identification in GPT-2 small",
+      "question": "How can we mechanistically understand how language models determine which entity receives an action in a sentence?"
+    },
+    {
+      "id": "q-2303.06296v2",
+      "paper_id": "67532e78-2b65-4808-838d-eb398d5240b2",
+      "arxiv_id": "2303.06296v2",
+      "title": "Stabilizing Transformer Training by Preventing Attention Entropy Collapse",
+      "question": "What causes instability during the training process of large language models that use self-attention mechanisms?"
+    },
+    {
+      "id": "q-2304.01373v2",
+      "paper_id": "ae3ef63a-da41-4011-9ebc-26e36915a0c0",
+      "arxiv_id": "2304.01373v2",
+      "title": "Pythia: A Suite for Analyzing Large Language Models Across Training and Scaling",
+      "question": "What tools or resources are available for studying how neural language models behave during the training process and at different model sizes?"
+    },
+    {
+      "id": "q-2304.14997v4",
+      "paper_id": "e59601a1-742e-4e91-8d81-5a7f879cb345",
+      "arxiv_id": "2304.14997v4",
+      "title": "Towards Automated Circuit Discovery for Mechanistic Interpretability",
+      "question": "How can we automatically identify the internal components and pathways in neural networks that are responsible for specific behaviors or capabilities?"
+    },
+    {
+      "id": "q-2309.08600v3",
+      "paper_id": "439d47f9-8ada-477f-9400-0adf047e673c",
+      "arxiv_id": "2309.08600v3",
+      "title": "Sparse Autoencoders Find Highly Interpretable Features in Language Models",
+      "question": "How can we extract meaningful and understandable representations from the internal activations of large language models?"
+    },
+    {
+      "id": "q-2601.03220v1",
+      "paper_id": "6de6bb80-a02a-4469-9e82-d7299095fef7",
+      "arxiv_id": "2601.03220v1",
+      "title": "From Entropy to Epiplexity: Rethinking Information for Computationally Bounded Intelligence",
+      "question": "How should we reconsider traditional information-theoretic measures when dealing with agents that have limited computational resources?"
+    },
+    {
+      "id": "q-2602.15029v1",
+      "paper_id": "b9c3cc0e-ba39-42cc-a763-f25e0d0dfe3f",
+      "arxiv_id": "2602.15029v1",
+      "title": "Symmetry in language statistics shapes the geometry of model representations",
+      "question": "How do statistical patterns in linguistic data influence the spatial organization of neural network embeddings?"
+    }
+  ]
+}
