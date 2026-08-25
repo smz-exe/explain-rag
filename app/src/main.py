@@ -23,17 +23,17 @@ from src.adapters.inbound.http.middleware import (
     BodySizeLimitMiddleware,
     SecurityHeadersMiddleware,
 )
+from src.adapters.outbound.anthropic_evaluator import AnthropicEvaluator
+from src.adapters.outbound.anthropic_faithfulness import AnthropicFaithfulness
+from src.adapters.outbound.anthropic_rag import AnthropicRAG
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
 from src.adapters.outbound.chroma_store import ChromaVectorStore
 from src.adapters.outbound.env_user_storage import EnvUserStorage
 from src.adapters.outbound.fastembed_embedding import FastEmbedEmbedding
 from src.adapters.outbound.fastembed_reranker import FastEmbedReranker
 from src.adapters.outbound.hdbscan_clusterer import HDBSCANClusterer
-from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
-from src.adapters.outbound.langchain_rag import LangChainRAG
 from src.adapters.outbound.postgres_query_storage import PostgresQueryStorage
 from src.adapters.outbound.postgres_vector_store import PostgresVectorStore
-from src.adapters.outbound.ragas_evaluator import RAGASEvaluator
 from src.adapters.outbound.sqlite_coordinates_storage import SQLiteCoordinatesStorage
 from src.adapters.outbound.sqlite_query_storage import SQLiteQueryStorage
 from src.adapters.outbound.umap_reducer import UMAPReducer
@@ -127,17 +127,21 @@ def create_app(
 
     if llm is None:
         logger.info(f"Initializing LLM adapter: {settings.claude_model}")
-        llm = LangChainRAG(
+        llm = AnthropicRAG(
             model=settings.claude_model,
             api_key=api_key,
             max_tokens=settings.claude_max_tokens,
+            timeout=settings.claude_timeout,
+            max_retries=settings.claude_max_retries,
         )
 
     if faithfulness is None:
         logger.info("Initializing faithfulness adapter")
-        faithfulness = LangChainFaithfulness(
+        faithfulness = AnthropicFaithfulness(
             model=settings.claude_model,
             api_key=api_key,
+            timeout=settings.claude_timeout,
+            max_retries=settings.claude_max_retries,
         )
 
     if reranker is None:
@@ -169,11 +173,10 @@ def create_app(
     )
 
     if evaluator is None:
-        logger.info("Initializing RAGAS evaluator")
-        evaluator = RAGASEvaluator(
+        logger.info("Initializing LLM-judge evaluator")
+        evaluator = AnthropicEvaluator(
             model=settings.claude_model,
             api_key=api_key,
-            embedding_model=settings.embedding_model,
             max_tokens=settings.claude_max_tokens,
             timeout=settings.claude_timeout,
             max_retries=settings.claude_max_retries,
