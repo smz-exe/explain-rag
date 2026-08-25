@@ -329,7 +329,11 @@ class PostgresVectorStore(VectorStorePort):
             paper_id = str(row["paper_id"])
             embedding = row["embedding"]
             if embedding is not None:
-                paper_embeddings[paper_id].append(np.array(embedding))
+                # pgvector >= 0.4 decodes columns as Vector objects instead of
+                # ndarray-compatible sequences
+                if hasattr(embedding, "to_numpy"):
+                    embedding = embedding.to_numpy()
+                paper_embeddings[paper_id].append(np.asarray(embedding, dtype=np.float32))
 
         return [
             (paper_id, np.mean(embeddings, axis=0).tolist())
