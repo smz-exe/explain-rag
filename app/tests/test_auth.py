@@ -125,3 +125,74 @@ class TestAuthWithConfiguredPassword:
 
         # Should no longer be authenticated after logout
         # (Note: In a real browser, the cookie would be deleted)
+
+
+class TestCookieAttributes:
+    """Cookie attributes must match the deployment environment.
+
+    The frontend (vercel.app) and API (fly.dev) are different sites, so the
+    auth cookie is third-party from the browser's perspective. In production
+    it must be SameSite=None; Secure; Partitioned (CHIPS) to survive
+    third-party-cookie blocking.
+    """
+
+    @pytest.fixture
+    def make_client(self, monkeypatch):
+        """Build a client factory parameterized by ENVIRONMENT."""
+        monkeypatch.setenv("ADMIN_USERNAME", "testadmin")
+        monkeypatch.setenv("ADMIN_PASSWORD_HASH", TEST_PASSWORD_HASH)
+        monkeypatch.setenv("JWT_SECRET_KEY", "test-secret-key-at-least-32-chars")
+
+        from httpx import ASGITransport, AsyncClient
+
+        def _make(environment: str) -> AsyncClient:
+            monkeypatch.setenv("ENVIRONMENT", environment)
+            from src.main import create_app
+
+            app = create_app()
+            return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+        return _make
+
+    @pytest.mark.asyncio
+    async def test_production_login_cookie_is_partitioned(self, make_client):
+        """Production cookies must carry SameSite=None; Secure; Partitioned."""
+        async with make_client("production") as client:
+            response = await client.post(
+                "/auth/login",
+                json={"username": "testadmin", "password": TEST_PASSWORD},
+            )
+
+        assert response.status_code == 200
+        set_cookie = response.headers["set-cookie"].lower()
+        assert "samesite=none" in set_cookie
+        assert "secure" in set_cookie
+        assert "partitioned" in set_cookie
+        assert "httponly" in set_cookie
+
+    @pytest.mark.asyncio
+    async def test_development_login_cookie_is_not_partitioned(self, make_client):
+        """Development cookies stay Lax without Secure/Partitioned (plain-http localhost)."""
+        async with make_client("development") as client:
+            response = await client.post(
+                "/auth/login",
+                json={"username": "testadmin", "password": TEST_PASSWORD},
+            )
+
+        assert response.status_code == 200
+        set_cookie = response.headers["set-cookie"].lower()
+        assert "samesite=lax" in set_cookie
+        assert "partitioned" not in set_cookie
+
+    @pytest.mark.asyncio
+    async def test_production_logout_deletes_partitioned_cookie(self, make_client):
+        """Logout must delete with matching attributes, or browsers keep the cookie."""
+        async with make_client("production") as client:
+            response = await client.post("/auth/logout")
+
+        assert response.status_code == 200
+        set_cookie = response.headers["set-cookie"].lower()
+        assert 'access_token=""' in set_cookie or "access_token=;" in set_cookie
+        assert "max-age=0" in set_cookie
+        assert "samesite=none" in set_cookie
+        assert "partitioned" in set_cookie

@@ -34,6 +34,33 @@ class UserResponse(BaseModel):
     is_admin: bool
 
 
+def _set_auth_cookie(response: Response, settings: Settings, *, value: str, max_age: int) -> None:
+    """Set (or, with max_age=0, delete) the auth cookie.
+
+    In production the frontend (vercel.app) and API (fly.dev) are different
+    sites, so this is a third-party cookie: it must be SameSite=None; Secure;
+    Partitioned (CHIPS) to survive third-party-cookie blocking. Python < 3.14's
+    http.cookies cannot serialize the Partitioned attribute, so the header is
+    built directly instead of using response.set_cookie().
+
+    In development, a plain Lax cookie works for localhost over http.
+    """
+    if settings.secure_cookies:
+        response.headers.append(
+            "set-cookie",
+            f"access_token={value}; HttpOnly; Max-Age={max_age}; Path=/; "
+            "SameSite=None; Secure; Partitioned",
+        )
+    else:
+        response.set_cookie(
+            key="access_token",
+            value=value,
+            httponly=True,
+            samesite="lax",
+            max_age=max_age,
+        )
+
+
 async def require_admin(access_token: str | None = Cookie(default=None)) -> UserResponse:
     """Dependency to require admin authentication.
 
@@ -117,24 +144,18 @@ def create_router(user_storage: UserStoragePort, settings: Settings) -> APIRoute
             algorithm=settings.jwt_algorithm,
         )
 
-        # Set httpOnly cookie with environment-dependent settings
-        # In production: secure=True, samesite="none" (required for cross-origin cookies)
-        # In development: secure=False, samesite="lax" (works for localhost)
-        response.set_cookie(
-            key="access_token",
-            value=token,
-            httponly=True,
-            secure=settings.secure_cookies,
-            samesite="none" if settings.secure_cookies else "lax",
-            max_age=settings.jwt_expire_minutes * 60,
-        )
+        _set_auth_cookie(response, settings, value=token, max_age=settings.jwt_expire_minutes * 60)
 
         return LoginResponse(message="Login successful")
 
     @router.post("/logout", response_model=LoginResponse)
     async def logout(response: Response) -> LoginResponse:
-        """Clear the JWT cookie."""
-        response.delete_cookie(key="access_token")
+        """Clear the JWT cookie.
+
+        Deletion attributes must match the login cookie (including
+        Partitioned), or browsers will not remove it.
+        """
+        _set_auth_cookie(response, settings, value="", max_age=0)
         return LoginResponse(message="Logged out")
 
     @router.get("/me", response_model=UserResponse)
