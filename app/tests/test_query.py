@@ -75,9 +75,9 @@ class TestCitationExtraction:
 
     def test_extract_citations_basic(self):
         """Test basic citation extraction."""
-        from src.adapters.outbound.langchain_rag import LangChainRAG
+        from src.adapters.outbound.anthropic_rag import AnthropicRAG
 
-        adapter = LangChainRAG()
+        adapter = AnthropicRAG()
         chunks = [
             Chunk(id="chunk-1", paper_id="paper-1", content="Content 1", chunk_index=0),
             Chunk(id="chunk-2", paper_id="paper-1", content="Content 2", chunk_index=1),
@@ -93,9 +93,9 @@ class TestCitationExtraction:
 
     def test_extract_citations_no_citations(self):
         """Test extraction with no citations."""
-        from src.adapters.outbound.langchain_rag import LangChainRAG
+        from src.adapters.outbound.anthropic_rag import AnthropicRAG
 
-        adapter = LangChainRAG()
+        adapter = AnthropicRAG()
         chunks = [
             Chunk(id="chunk-1", paper_id="paper-1", content="Content 1", chunk_index=0),
         ]
@@ -111,9 +111,9 @@ class TestFaithfulnessScoring:
 
     def test_calculate_score_all_supported(self):
         """Test score calculation with all supported claims."""
-        from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
+        from src.adapters.outbound.anthropic_faithfulness import AnthropicFaithfulness
 
-        adapter = LangChainFaithfulness()
+        adapter = AnthropicFaithfulness()
         results = [
             ClaimVerification(
                 claim="Claim 1", verdict="supported", evidence_chunk_ids=[], reasoning=""
@@ -128,9 +128,9 @@ class TestFaithfulnessScoring:
 
     def test_calculate_score_mixed(self):
         """Test score calculation with mixed verdicts."""
-        from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
+        from src.adapters.outbound.anthropic_faithfulness import AnthropicFaithfulness
 
-        adapter = LangChainFaithfulness()
+        adapter = AnthropicFaithfulness()
         results = [
             ClaimVerification(
                 claim="Claim 1", verdict="supported", evidence_chunk_ids=[], reasoning=""
@@ -148,8 +148,8 @@ class TestFaithfulnessScoring:
 
     def test_calculate_score_empty(self):
         """Test score calculation with no claims."""
-        from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
+        from src.adapters.outbound.anthropic_faithfulness import AnthropicFaithfulness
 
-        adapter = LangChainFaithfulness()
+        adapter = AnthropicFaithfulness()
         score = adapter._calculate_score([])
         assert score == 1.0

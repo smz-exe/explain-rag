@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.adapters.outbound.langchain_rag import LangChainRAG
+from src.adapters.outbound.anthropic_rag import AnthropicRAG
 from src.domain.entities.chunk import Chunk
 from src.domain.entities.query import Citation
 from tests.conftest import MockLLMPort
@@ -59,7 +59,7 @@ class TestCitationExtraction:
 
     def test_extract_citations_basic(self):
         """Test basic citation extraction."""
-        adapter = LangChainRAG()
+        adapter = AnthropicRAG()
         chunks = [
             Chunk(id="chunk-1", paper_id="paper-1", content="Content 1", chunk_index=0),
             Chunk(id="chunk-2", paper_id="paper-1", content="Content 2", chunk_index=1),
@@ -75,7 +75,7 @@ class TestCitationExtraction:
 
     def test_extract_citations_no_citations(self):
         """Test extraction with no citations."""
-        adapter = LangChainRAG()
+        adapter = AnthropicRAG()
         chunks = [
             Chunk(id="chunk-1", paper_id="paper-1", content="Content 1", chunk_index=0),
         ]
@@ -87,7 +87,7 @@ class TestCitationExtraction:
 
     def test_extract_citations_multiple_same(self):
         """Test extraction with multiple citations of same chunk."""
-        adapter = LangChainRAG()
+        adapter = AnthropicRAG()
         chunks = [
             Chunk(id="chunk-1", paper_id="paper-1", content="Content 1", chunk_index=0),
         ]
@@ -102,7 +102,7 @@ class TestCitationExtraction:
 
     def test_extract_citations_out_of_range(self):
         """Test extraction handles out-of-range citation numbers."""
-        adapter = LangChainRAG()
+        adapter = AnthropicRAG()
         chunks = [
             Chunk(id="chunk-1", paper_id="paper-1", content="Content 1", chunk_index=0),
         ]
@@ -117,7 +117,7 @@ class TestCitationExtraction:
 
     def test_extract_citations_sentence_splitting(self):
         """Test that citations are extracted with their sentences."""
-        adapter = LangChainRAG()
+        adapter = AnthropicRAG()
         chunks = [
             Chunk(id="chunk-1", paper_id="paper-1", content="Content 1", chunk_index=0),
             Chunk(id="chunk-2", paper_id="paper-1", content="Content 2", chunk_index=1),

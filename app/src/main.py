@@ -81,12 +81,12 @@ def create_app(
     Args:
         embedding: Embedding adapter (default: FastEmbedEmbedding)
         vector_store: Vector store adapter (default: ChromaVectorStore)
-        llm: LLM adapter (default: LangChainRAG)
-        faithfulness: Faithfulness adapter (default: LangChainFaithfulness)
+        llm: LLM adapter (default: AnthropicRAG)
+        faithfulness: Faithfulness adapter (default: AnthropicFaithfulness)
         reranker: Reranker adapter (default: FastEmbedReranker)
         query_storage: Query storage adapter (default: SQLiteQueryStorage)
         coordinates_storage: Coordinates storage adapter (default: SQLiteCoordinatesStorage)
-        evaluator: Evaluation adapter (default: RAGASEvaluator)
+        evaluator: Evaluation adapter (default: AnthropicEvaluator)
         dim_reducer: Dimensionality reduction adapter (default: UMAPReducer)
         clusterer: Clustering adapter (default: HDBSCANClusterer)
 

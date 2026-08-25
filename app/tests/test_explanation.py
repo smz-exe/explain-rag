@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.adapters.outbound.langchain_faithfulness import LangChainFaithfulness
+from src.adapters.outbound.anthropic_faithfulness import AnthropicFaithfulness
 from src.domain.entities.explanation import ClaimVerification
 from tests.conftest import MockFaithfulnessPort
 
@@ -98,7 +98,7 @@ class TestFaithfulnessScoring:
 
     def test_calculate_score_all_supported(self):
         """Test score calculation with all supported claims."""
-        adapter = LangChainFaithfulness()
+        adapter = AnthropicFaithfulness()
         results = [
             ClaimVerification(
                 claim="Claim 1",
@@ -119,7 +119,7 @@ class TestFaithfulnessScoring:
 
     def test_calculate_score_all_unsupported(self):
         """Test score calculation with all unsupported claims."""
-        adapter = LangChainFaithfulness()
+        adapter = AnthropicFaithfulness()
         results = [
             ClaimVerification(
                 claim="Claim 1",
@@ -140,7 +140,7 @@ class TestFaithfulnessScoring:
 
     def test_calculate_score_mixed(self):
         """Test score calculation with mixed verdicts."""
-        adapter = LangChainFaithfulness()
+        adapter = AnthropicFaithfulness()
         results = [
             ClaimVerification(
                 claim="Claim 1",
@@ -168,13 +168,13 @@ class TestFaithfulnessScoring:
 
     def test_calculate_score_empty(self):
         """Test score calculation with no claims."""
-        adapter = LangChainFaithfulness()
+        adapter = AnthropicFaithfulness()
         score = adapter._calculate_score([])
         assert score == 1.0
 
     def test_calculate_score_all_partial(self):
         """Test score calculation with all partial claims."""
-        adapter = LangChainFaithfulness()
+        adapter = AnthropicFaithfulness()
         results = [
             ClaimVerification(
                 claim="Claim 1",
