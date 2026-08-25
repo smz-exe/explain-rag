@@ -267,7 +267,12 @@ class TestFaithfulnessBatching:
         claims = [f"Claim {i}." for i in range(30)]
         # 1 decompose call + batches of 12/12/6
         adapter, client = self.make_adapter(
-            [json.dumps(claims), self.verdicts_json(12), self.verdicts_json(12), self.verdicts_json(6)]
+            [
+                json.dumps(claims),
+                self.verdicts_json(12),
+                self.verdicts_json(12),
+                self.verdicts_json(6),
+            ]
         )
 
         result = await adapter.verify("Answer.", sample_chunks)
