@@ -6,6 +6,7 @@ from pathlib import Path
 
 import arxiv
 import fitz  # PyMuPDF
+import httpx
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -42,12 +43,19 @@ class ArxivPaperSource(PaperSourcePort):
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError, httpx.HTTPError)),
         reraise=True,
     )
-    def _download_pdf(result, dirpath, filename):
-        """Download PDF with retry logic for network errors."""
-        return result.download_pdf(dirpath=dirpath, filename=filename)
+    def _download_pdf(pdf_url: str, pdf_path: Path) -> None:
+        """Download a PDF to pdf_path with retry logic for network errors.
+
+        arxiv >= 4.0 removed Result.download_pdf, so the PDF is fetched
+        directly from the result's pdf_url.
+        """
+        with httpx.Client(timeout=60.0, follow_redirects=True) as client:
+            response = client.get(pdf_url)
+            response.raise_for_status()
+            pdf_path.write_bytes(response.content)
 
     async def fetch_by_id(self, arxiv_id: str) -> Paper:
         """Fetch paper metadata by arXiv ID."""
@@ -114,28 +122,15 @@ class ArxivPaperSource(PaperSourcePort):
         """Download PDF, parse text, and split into chunks."""
         logger.debug(f"Extracting chunks from paper: {paper.arxiv_id}")
 
+        if not paper.pdf_url:
+            raise PDFParsingError(f"No PDF URL available for {paper.arxiv_id}")
+
         # Download PDF to temp file
         with tempfile.TemporaryDirectory() as temp_dir:
             pdf_path = Path(temp_dir) / f"{paper.arxiv_id}.pdf"
 
-            # Download the PDF with retry
-            search = arxiv.Search(id_list=[paper.arxiv_id.split("v")[0]])
             try:
-                results = await asyncio.to_thread(self._fetch_arxiv_results, self._client, search)
-            except Exception as e:
-                logger.error(f"Failed to fetch paper for download: {paper.arxiv_id}: {e}")
-                raise PDFParsingError(f"Could not download PDF for {paper.arxiv_id}: {e}") from e
-
-            if not results:
-                raise PDFParsingError(f"Could not download PDF for {paper.arxiv_id}")
-
-            try:
-                await asyncio.to_thread(
-                    self._download_pdf,
-                    results[0],
-                    temp_dir,
-                    f"{paper.arxiv_id}.pdf",
-                )
+                await asyncio.to_thread(self._download_pdf, paper.pdf_url, pdf_path)
             except Exception as e:
                 logger.error(f"PDF download failed for {paper.arxiv_id}: {e}")
                 raise PDFParsingError(f"Failed to download PDF for {paper.arxiv_id}: {e}") from e
