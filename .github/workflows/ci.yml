@@ -66,9 +66,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install pnpm
+        # Version comes from package.json#packageManager
         uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -90,10 +89,9 @@ jobs:
         run: pnpm exec tsc --noEmit
 
       - name: Build
-        # `pnpm build` would run the orval prebuild, which needs a live
-        # backend for the OpenAPI spec. CI builds against the committed,
-        # generated client in src/api instead.
-        run: pnpm exec next build
+        # Builds against the committed orval client in src/api; regeneration
+        # is a manual step (pnpm generate:api) after backend changes
+        run: pnpm build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
 
