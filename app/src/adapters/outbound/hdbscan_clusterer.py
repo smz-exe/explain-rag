@@ -63,14 +63,15 @@ class HDBSCANClusterer(ClusteringPort):
         )
 
         embeddings_array = np.array(embeddings)
-        self._labels = await asyncio.to_thread(clusterer.fit_predict, embeddings_array)
+        labels = await asyncio.to_thread(clusterer.fit_predict, embeddings_array)
+        self._labels = labels
 
         # Count unique clusters (excluding -1 which is noise)
-        unique_labels = set(self._labels.tolist())
+        unique_labels = set(labels.tolist())
         unique_labels.discard(-1)
         self._cluster_count = len(unique_labels)
 
-        return self._labels.tolist()
+        return labels.tolist()
 
     async def get_cluster_count(self) -> int:
         """Get the number of clusters found (excluding noise).

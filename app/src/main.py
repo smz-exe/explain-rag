@@ -46,6 +46,7 @@ from src.domain.ports.embedding import EmbeddingPort
 from src.domain.ports.evaluation import EvaluationPort
 from src.domain.ports.faithfulness import FaithfulnessPort
 from src.domain.ports.llm import LLMPort
+from src.domain.ports.paper_source import PaperSourcePort
 from src.domain.ports.query_storage import QueryStoragePort
 from src.domain.ports.reranker import RerankerPort
 from src.domain.ports.vector_store import VectorStorePort
@@ -62,6 +63,7 @@ def create_app(
     *,
     embedding: EmbeddingPort | None = None,
     vector_store: VectorStorePort | None = None,
+    paper_source: PaperSourcePort | None = None,
     llm: LLMPort | None = None,
     faithfulness: FaithfulnessPort | None = None,
     reranker: RerankerPort | None = None,
@@ -79,6 +81,7 @@ def create_app(
     Args:
         embedding: Embedding adapter (default: FastEmbedEmbedding)
         vector_store: Vector store adapter (default: PostgresVectorStore)
+        paper_source: Paper source adapter (default: ArxivPaperSource)
         llm: LLM adapter (default: AnthropicRAG)
         faithfulness: Faithfulness adapter (default: AnthropicFaithfulness)
         reranker: Reranker adapter (default: FastEmbedReranker)
@@ -113,8 +116,9 @@ def create_app(
             pool_max_size=settings.database_pool_max,
         )
 
-    logger.info("Initializing arXiv paper source")
-    paper_source = ArxivPaperSource()
+    if paper_source is None:
+        logger.info("Initializing arXiv paper source")
+        paper_source = ArxivPaperSource()
 
     # Initialize LLM adapters
     api_key = settings.anthropic_api_key.get_secret_value()
@@ -259,7 +263,8 @@ def create_app(
     # Configure rate limiting exception handler
     # Rate limiting is applied per-endpoint in query.py using the limits library
     app.state.settings = settings  # Store settings for rate limit configuration access
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    # slowapi's handler is typed narrower than starlette's protocol
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
     # HTTP hardening (added before CORS so CORS stays outermost and error
     # responses from these layers still receive CORS headers)

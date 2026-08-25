@@ -51,5 +51,8 @@ htmlcov/
 # Ruff
 .ruff_cache/
 
+# mypy
+.mypy_cache/
+
 # Jupyter
 .ipynb_checkpoints/

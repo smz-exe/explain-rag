@@ -126,7 +126,8 @@ class TestVectorStoreManagement:
         """Test adding chunks to vector store."""
         vector_store = MockVectorStorePort()
 
-        await vector_store.add_chunks(sample_chunks)
+        embeddings = [[0.1] * 384 for _ in sample_chunks]
+        await vector_store.add_chunks(sample_chunks, embeddings)
 
         assert len(vector_store.chunks) == 3
         assert len(vector_store.added_chunks) == 3

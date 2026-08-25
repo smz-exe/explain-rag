@@ -74,7 +74,8 @@ def _collect_requested_ids(args: argparse.Namespace) -> list[str]:
 
 async def run(args: argparse.Namespace) -> int:
     """Execute the ingestion batch. Returns a process exit code."""
-    settings = Settings(_env_file=args.env_file)
+    # pydantic-settings accepts _env_file at runtime but does not type it
+    settings = Settings(_env_file=args.env_file)  # type: ignore[call-arg]
 
     paper_source = ArxivPaperSource()
     embedding = FastEmbedEmbedding(model_name=settings.embedding_model)

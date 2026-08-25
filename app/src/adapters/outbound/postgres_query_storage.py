@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import asyncpg
 from pgvector.asyncpg import register_vector
 
+from src.domain.entities.explanation import ExplanationTrace, FaithfulnessResult
 from src.domain.entities.query import QueryResponse
 from src.domain.ports.query_storage import QueryStoragePort
 
@@ -134,8 +135,8 @@ class PostgresQueryStorage(QueryStoragePort):
             answer=row["answer"] or "",
             citations=citations,
             retrieved_chunks=retrieved_chunks,
-            faithfulness=faithfulness_details,
-            trace=timing,
+            faithfulness=FaithfulnessResult.model_validate(faithfulness_details),
+            trace=ExplanationTrace.model_validate(timing),
         )
 
     async def list_recent(self, limit: int = 20) -> list[dict]:

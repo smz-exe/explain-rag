@@ -47,6 +47,9 @@ jobs:
       - name: Format check (ruff format)
         run: uv run ruff format --check src/ tests/
 
+      - name: Type check (mypy)
+        run: uv run mypy src/
+
       - name: Apply database migrations
         run: |
           for migration in supabase/migrations/*.sql; do

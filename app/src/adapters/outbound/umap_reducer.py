@@ -96,12 +96,10 @@ class UMAPReducer(DimensionalityReductionPort):
             List of coordinate tuples spread along a line.
         """
         # Spread points along the x-axis, centered at origin
-        coords = []
+        coords: list[tuple[float, float, float]] = []
         for i in range(n_points):
             x = (i - (n_points - 1) / 2) * 2.0  # Spread by 2 units
-            y = 0.0
-            z = 0.0 if n_components >= 3 else None
-            coords.append((x, y, z) if n_components >= 3 else (x, y))
+            coords.append((x, 0.0, 0.0))
         return coords
 
     async def transform(
@@ -119,7 +117,7 @@ class UMAPReducer(DimensionalityReductionPort):
         Raises:
             RuntimeError: If called before fit_transform.
         """
-        if not self.is_fitted():
+        if not self.is_fitted() or self._reducer is None:
             raise RuntimeError("UMAP reducer has not been fitted. Call fit_transform first.")
 
         if not embeddings:

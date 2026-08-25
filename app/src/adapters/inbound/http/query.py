@@ -39,7 +39,8 @@ async def rate_limit_dependency(request: Request) -> None:
         from slowapi.errors import RateLimitExceeded
 
         # Raise the slowapi exception for consistent error handling
-        raise RateLimitExceeded(None)
+        # slowapi types this as Limit, but the handler tolerates None
+        raise RateLimitExceeded(None)  # type: ignore[arg-type]
 
 
 class QuerySummary(BaseModel):

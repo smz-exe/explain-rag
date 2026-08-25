@@ -149,7 +149,10 @@ class AnthropicEvaluator(EvaluationPort):
         )
 
         relevance_scores = {"full": 1.0, "partial": 0.5, "none": 0.0}
-        answer_relevancy = relevance_scores.get(verdict.get("answer_relevance"), 0.0)
+        relevance = verdict.get("answer_relevance")
+        answer_relevancy = (
+            relevance_scores.get(relevance, 0.0) if isinstance(relevance, str) else 0.0
+        )
 
         contexts = [c for c in verdict.get("contexts", []) if isinstance(c, dict)]
         context_precision = (
