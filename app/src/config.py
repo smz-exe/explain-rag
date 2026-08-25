@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     claude_timeout: float = 120.0  # Timeout in seconds for Claude API calls
     claude_max_retries: int = 2  # Max retries for transient failures
 
+    # HTTP hardening
+    max_request_body_bytes: int = 1_048_576  # Reject request bodies larger than 1 MiB
+
     # Embedding Configuration (FastEmbed with ONNX Runtime)
     embedding_provider: str = "local"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"  # FastEmbed format

@@ -1,7 +1,12 @@
+import logging
+
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from src.domain.ports.vector_store import VectorStorePort
+
+logger = logging.getLogger(__name__)
 
 
 class HealthResponse(BaseModel):
@@ -33,5 +38,20 @@ def create_router(vector_store: VectorStorePort) -> APIRouter:
             papers_count=stats.get("paper_count", 0),
             chunks_count=stats.get("chunk_count", 0),
         )
+
+    @router.get("/live")
+    async def liveness() -> dict[str, str]:
+        """Liveness probe: the process is up and serving requests."""
+        return {"status": "alive"}
+
+    @router.get("/ready")
+    async def readiness() -> JSONResponse:
+        """Readiness probe: the service can reach its database."""
+        try:
+            await vector_store.get_stats()
+        except Exception:
+            logger.exception("Readiness check failed")
+            return JSONResponse(status_code=503, content={"status": "not_ready"})
+        return JSONResponse(status_code=200, content={"status": "ready"})
 
     return router

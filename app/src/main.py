@@ -19,6 +19,10 @@ from src.adapters.inbound.http import (
     query,
     stats,
 )
+from src.adapters.inbound.http.middleware import (
+    BodySizeLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
 from src.adapters.outbound.chroma_store import ChromaVectorStore
 from src.adapters.outbound.env_user_storage import EnvUserStorage
@@ -256,6 +260,11 @@ def create_app(
     # Rate limiting is applied per-endpoint in query.py using the limits library
     app.state.settings = settings  # Store settings for rate limit configuration access
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # HTTP hardening (added before CORS so CORS stays outermost and error
+    # responses from these layers still receive CORS headers)
+    app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_request_body_bytes)
+    app.add_middleware(SecurityHeadersMiddleware, enable_hsts=settings.environment == "production")
 
     # Configure CORS
     app.add_middleware(
