@@ -133,9 +133,7 @@ class TestPostgresVectorStore:
 
         # Search with filter
         query_embedding = [0.15] * 384
-        results = await vector_store.search(
-            query_embedding, top_k=5, filter={"paper_id": paper_id}
-        )
+        results = await vector_store.search(query_embedding, top_k=5, filter={"paper_id": paper_id})
 
         assert len(results) > 0
         for chunk, _ in results:
