@@ -17,10 +17,10 @@ export default defineConfig({
           path: "./src/api/custom-fetch.ts",
           name: "customFetch",
         },
-        query: {
-          useQuery: true,
-          useMutation: true,
-        },
+        // No query override: orval's defaults generate useQuery hooks for GET
+        // and useMutation hooks for non-GET. Setting useQuery+useMutation
+        // globally inverts that (mutation takes precedence for GET, query for
+        // non-GET) since orval 8.x — which breaks every call site here.
       },
     },
   },

@@ -6,10 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * Response model for paper deletion.
- */
-export interface DeletePaperResponse {
-  paper_id: string;
-  deleted_chunks: number;
-}
+export type LivenessLiveGet200 = {[key: string]: string};

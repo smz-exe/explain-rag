@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
-  loginAuthLoginPost,
-  logoutAuthLogoutPost,
-  getCurrentUserAuthMeGet,
+  getGetCurrentUserAuthMeGetQueryKey,
+  useGetCurrentUserAuthMeGet,
+  useLoginAuthLoginPost,
+  useLogoutAuthLogoutPost,
 } from "@/api/queries/auth/auth";
 import type { LoginRequest, UserResponse } from "@/api/model";
 
@@ -20,58 +21,52 @@ export interface UseAuthReturn {
 
 /**
  * Hook for managing authentication state.
+ *
+ * Built on the orval-generated React Query hooks: the current-user query is
+ * shared through the query cache, so every component using this hook sees the
+ * same auth state without duplicate requests.
  */
 export function useAuth(): UseAuthReturn {
-  const [user, setUser] = useState<UserResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  const fetchCurrentUser =
-    useCallback(async (): Promise<UserResponse | null> => {
-      try {
-        const response = await getCurrentUserAuthMeGet();
-        // custom-fetch throws on non-200, so we can safely narrow
-        return response.status === 200 ? response.data : null;
-      } catch {
-        return null;
-      }
-    }, []);
+  // custom-fetch throws on non-200 (e.g. 401 when logged out), which lands
+  // the query in its error state — treated as "not authenticated"
+  const meQuery = useGetCurrentUserAuthMeGet({
+    query: { retry: false },
+  });
 
-  const checkAuth = useCallback(async () => {
-    const currentUser = await fetchCurrentUser();
-    setUser(currentUser);
-    setIsLoading(false);
-  }, [fetchCurrentUser]);
+  const user: UserResponse | null =
+    meQuery.data?.status === 200 ? meQuery.data.data : null;
 
-  useEffect(() => {
-    // State updates happen in the promise callback, never synchronously
-    // in the effect body (react-hooks/set-state-in-effect)
-    let cancelled = false;
-    fetchCurrentUser().then((currentUser) => {
-      if (cancelled) return;
-      setUser(currentUser);
-      setIsLoading(false);
+  const loginMutation = useLoginAuthLoginPost();
+  const logoutMutation = useLogoutAuthLogoutPost();
+
+  const invalidateAuth = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: getGetCurrentUserAuthMeGetQueryKey(),
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchCurrentUser]);
+  };
+
+  const checkAuth = async () => {
+    await meQuery.refetch();
+  };
 
   const login = async (data: LoginRequest) => {
-    await loginAuthLoginPost(data);
-    await checkAuth();
+    await loginMutation.mutateAsync({ data });
+    await invalidateAuth();
     router.push("/admin");
   };
 
   const logout = async () => {
-    await logoutAuthLogoutPost();
-    setUser(null);
+    await logoutMutation.mutateAsync();
+    await invalidateAuth();
     router.push("/login");
   };
 
   return {
     user,
-    isLoading,
+    isLoading: meQuery.isLoading,
     isAuthenticated: !!user,
     login,
     logout,
