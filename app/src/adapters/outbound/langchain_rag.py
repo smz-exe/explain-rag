@@ -46,10 +46,9 @@ class LangChainRAG(LLMPort):
 
     def __init__(
         self,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "claude-sonnet-5",
         api_key: str = "",
         max_tokens: int = 4096,
-        temperature: float = 0.0,
     ):
         """Initialize the LangChain RAG adapter.
 
@@ -57,23 +56,22 @@ class LangChainRAG(LLMPort):
             model: Anthropic model name.
             api_key: Anthropic API key.
             max_tokens: Maximum tokens in response.
-            temperature: Sampling temperature (0.0 for deterministic).
         """
         self._model = model
         self._api_key = api_key
         self._max_tokens = max_tokens
-        self._temperature = temperature
         self._llm: ChatAnthropic | None = None
 
     @property
     def llm(self) -> ChatAnthropic:
         """Lazy-load the LLM client."""
         if self._llm is None:
+            # Sampling params (temperature/top_p/top_k) are removed on current
+            # Claude models — the API returns 400 if they are sent
             self._llm = ChatAnthropic(
                 model=self._model,
                 api_key=self._api_key,
                 max_tokens=self._max_tokens,
-                temperature=self._temperature,
             )
         return self._llm
 

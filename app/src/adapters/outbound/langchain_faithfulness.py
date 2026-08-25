@@ -77,7 +77,6 @@ class LangChainFaithfulness(FaithfulnessPort):
                 model=self._model,
                 api_key=self._api_key,
                 max_tokens=self._max_tokens,
-                temperature=0.0,  # Deterministic for evaluation
             )
         return self._llm
 

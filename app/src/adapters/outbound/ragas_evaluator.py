@@ -96,7 +96,6 @@ class RAGASEvaluator(EvaluationPort):
                 model=self._model,
                 api_key=self._api_key,
                 max_tokens=self._max_tokens,
-                temperature=0.0,
                 timeout=self._timeout,
                 max_retries=self._max_retries,
             )
