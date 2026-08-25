@@ -240,3 +240,64 @@ class TestAnthropicEvaluator:
 
         with pytest.raises(EvaluationError):
             await evaluator.evaluate("Q?", "Answer.", ["ctx"])
+
+
+class TestFaithfulnessBatching:
+    """Large claim sets must be verified in batches to avoid output truncation.
+
+    A 32-claim verification response with per-claim reasoning exceeded
+    max_tokens=2048 in production, truncating the JSON array and marking every
+    claim unsupported via the parse fallback (0% faithfulness on a faithful
+    answer).
+    """
+
+    def make_adapter(self, responses) -> tuple[AnthropicFaithfulness, FakeClient]:
+        client = FakeClient(responses)
+        return AnthropicFaithfulness(model="claude-sonnet-5", client=client), client
+
+    def verdicts_json(self, count: int) -> str:
+        return json.dumps(
+            [
+                {"claim_index": i, "verdict": "supported", "evidence_chunk_indices": [1]}
+                for i in range(count)
+            ]
+        )
+
+    async def test_large_claim_set_is_verified_in_batches(self, sample_chunks):
+        claims = [f"Claim {i}." for i in range(30)]
+        # 1 decompose call + batches of 12/12/6
+        adapter, client = self.make_adapter(
+            [json.dumps(claims), self.verdicts_json(12), self.verdicts_json(12), self.verdicts_json(6)]
+        )
+
+        result = await adapter.verify("Answer.", sample_chunks)
+
+        assert len(client.messages.requests) == 4
+        assert len(result.claims) == 30
+        assert result.score == 1.0
+        # Batch-local claim_index must map back to the global claim order
+        assert result.claims[29].claim == "Claim 29."
+        assert result.claims[29].verdict == "supported"
+
+    async def test_verify_max_tokens_scales_with_batch_size(self, sample_chunks):
+        claims = [f"Claim {i}." for i in range(12)]
+        adapter, client = self.make_adapter([json.dumps(claims), self.verdicts_json(12)])
+
+        await adapter.verify("Answer.", sample_chunks)
+
+        verify_request = client.messages.requests[1]
+        assert verify_request["max_tokens"] >= 12 * 150
+
+    async def test_failed_batch_only_affects_its_own_claims(self, sample_chunks):
+        claims = [f"Claim {i}." for i in range(13)]
+        # First batch (12) parses, second batch (1) is truncated garbage
+        adapter, _ = self.make_adapter(
+            [json.dumps(claims), self.verdicts_json(12), '[{"claim_index": 0, "verd']
+        )
+
+        result = await adapter.verify("Answer.", sample_chunks)
+
+        assert len(result.claims) == 13
+        assert all(c.verdict == "supported" for c in result.claims[:12])
+        assert result.claims[12].verdict == "unsupported"
+        assert result.score == pytest.approx(12 / 13)

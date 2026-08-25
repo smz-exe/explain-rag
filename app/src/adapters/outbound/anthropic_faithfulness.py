@@ -40,10 +40,20 @@ For EACH claim, evaluate whether it is supported by the chunks. Respond with a J
     "claim_index": <0-based index of the claim>,
     "verdict": "supported" or "unsupported" or "partial",
     "evidence_chunk_indices": [list of 1-based chunk numbers that support/refute the claim],
-    "reasoning": "brief explanation of your verdict"
+    "reasoning": "one short sentence explaining the verdict"
 }}
 
 Output only the JSON array, no other text:"""
+
+# Claims per verification call. A batch of 12 with one-sentence reasoning
+# stays comfortably inside the response token budget; unbatched 30+ claim
+# responses were truncated at max_tokens in production, which the JSON
+# parser then rejected wholesale (0% faithfulness on faithful answers).
+VERIFY_BATCH_SIZE = 12
+# Response budget per claim (JSON overhead + reasoning), plus fixed headroom
+VERIFY_TOKENS_PER_CLAIM = 200
+VERIFY_TOKENS_HEADROOM = 500
+VERIFY_MAX_TOKENS_CEILING = 8192
 
 
 class AnthropicFaithfulness(FaithfulnessPort):
@@ -99,13 +109,15 @@ class AnthropicFaithfulness(FaithfulnessPort):
             logger.error(f"Faithfulness verification failed: {e}")
             raise FaithfulnessVerificationError(f"Failed to verify faithfulness: {e}") from e
 
-    async def _complete(self, prompt: str) -> str:
+    async def _complete(self, prompt: str, max_tokens: int | None = None) -> str:
         """Run a single user-prompt completion and return its text."""
         response = await self._client.messages.create(
             model=self._model,
-            max_tokens=self._max_tokens,
+            max_tokens=max_tokens or self._max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
+        if getattr(response, "stop_reason", None) == "max_tokens":
+            logger.warning("Faithfulness completion truncated at max_tokens — output incomplete")
         return response_text(response)
 
     async def _decompose_answer(self, answer: str) -> list[str]:
@@ -123,10 +135,26 @@ class AnthropicFaithfulness(FaithfulnessPort):
     async def _verify_claims_batch(
         self, claims: list[str], chunks: list[Chunk]
     ) -> list[ClaimVerification]:
-        """Verify all claims in a single LLM call (batched)."""
+        """Verify claims in batches sized to keep responses under the token budget."""
+        verifications: list[ClaimVerification] = []
+        for start in range(0, len(claims), VERIFY_BATCH_SIZE):
+            batch = claims[start : start + VERIFY_BATCH_SIZE]
+            verifications.extend(await self._verify_batch(batch, chunks))
+        return verifications
+
+    async def _verify_batch(
+        self, claims: list[str], chunks: list[Chunk]
+    ) -> list[ClaimVerification]:
+        """Verify one batch of claims in a single LLM call."""
         claims_text = "\n".join(f"[{i}] {claim}" for i, claim in enumerate(claims))
         chunks_text = self._format_chunks(chunks)
-        content = await self._complete(VERIFY_PROMPT.format(claims=claims_text, chunks=chunks_text))
+        max_tokens = min(
+            VERIFY_MAX_TOKENS_CEILING,
+            max(self._max_tokens, VERIFY_TOKENS_PER_CLAIM * len(claims) + VERIFY_TOKENS_HEADROOM),
+        )
+        content = await self._complete(
+            VERIFY_PROMPT.format(claims=claims_text, chunks=chunks_text), max_tokens=max_tokens
+        )
 
         try:
             results = parse_json_response(content)

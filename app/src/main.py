@@ -138,6 +138,7 @@ def create_app(
         faithfulness = AnthropicFaithfulness(
             model=settings.claude_model,
             api_key=api_key,
+            max_tokens=settings.claude_max_tokens,
             timeout=settings.claude_timeout,
             max_retries=settings.claude_max_retries,
         )
