@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from src.domain.entities.explanation import ExplanationTrace, FaithfulnessResult
@@ -57,5 +59,12 @@ class QueryResponse(BaseModel):
     answer: str = Field(description="Generated answer with inline citations")
     citations: list[Citation] = Field(description="Citation mappings")
     retrieved_chunks: list[RetrievedChunk] = Field(description="Retrieved chunks with scores")
-    faithfulness: FaithfulnessResult = Field(description="Faithfulness verification result")
+    faithfulness: FaithfulnessResult | None = Field(
+        default=None,
+        description="Faithfulness verification result (None while verification is pending)",
+    )
+    faithfulness_status: Literal["completed", "pending", "failed"] = Field(
+        default="completed",
+        description="Verification lifecycle; 'pending' when verification runs after the answer",
+    )
     trace: ExplanationTrace = Field(description="Timing breakdown")

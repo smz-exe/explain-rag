@@ -86,8 +86,9 @@ def record_from_response(question: dict[str, Any], response: QueryResponse) -> d
             default=0,
         ),
         "n_citations": len(response.citations),
-        "n_claims": len(response.faithfulness.claims),
-        "faithfulness_score": response.faithfulness.score,
+        # The harness runs the synchronous pipeline, so verification is present
+        "n_claims": len(response.faithfulness.claims) if response.faithfulness else 0,
+        "faithfulness_score": response.faithfulness.score if response.faithfulness else 0.0,
         "timings": {
             "embedding_ms": trace.embedding_time_ms,
             "retrieval_ms": trace.retrieval_time_ms,

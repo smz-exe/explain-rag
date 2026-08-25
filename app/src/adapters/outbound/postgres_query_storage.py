@@ -69,7 +69,12 @@ class PostgresQueryStorage(QueryStoragePort):
         # Serialize complex fields to JSON
         citations_json = json.dumps([c.model_dump() for c in response.citations])
         retrieved_chunks_json = json.dumps([c.model_dump() for c in response.retrieved_chunks])
-        faithfulness_details_json = json.dumps(response.faithfulness.model_dump())
+        # Completed results store the bare FaithfulnessResult dict (legacy shape);
+        # pending/failed store a status envelope so reads can distinguish them
+        if response.faithfulness is not None:
+            faithfulness_details_json = json.dumps(response.faithfulness.model_dump())
+        else:
+            faithfulness_details_json = json.dumps({"status": response.faithfulness_status})
         timing_json = json.dumps(response.trace.model_dump())
 
         async with pool.acquire() as conn:
@@ -93,7 +98,7 @@ class PostgresQueryStorage(QueryStoragePort):
                 response.answer,
                 citations_json,
                 retrieved_chunks_json,
-                response.faithfulness.score,
+                response.faithfulness.score if response.faithfulness else None,
                 faithfulness_details_json,
                 timing_json,
                 created_at,
@@ -135,7 +140,16 @@ class PostgresQueryStorage(QueryStoragePort):
             answer=row["answer"] or "",
             citations=citations,
             retrieved_chunks=retrieved_chunks,
-            faithfulness=FaithfulnessResult.model_validate(faithfulness_details),
+            faithfulness=(
+                FaithfulnessResult.model_validate(faithfulness_details)
+                if "score" in faithfulness_details
+                else None
+            ),
+            faithfulness_status=(
+                "completed"
+                if "score" in faithfulness_details
+                else faithfulness_details.get("status", "pending")
+            ),
             trace=ExplanationTrace.model_validate(timing),
         )
 

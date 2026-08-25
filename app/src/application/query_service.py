@@ -2,6 +2,7 @@ import logging
 import time
 import uuid
 
+from src.domain.entities.chunk import Chunk
 from src.domain.entities.explanation import ExplanationTrace, FaithfulnessResult
 from src.domain.entities.query import (
     QueryRequest,
@@ -50,7 +51,7 @@ class QueryService:
         self._query_storage = query_storage
         self._default_top_k = default_top_k
 
-    async def query(self, request: QueryRequest) -> QueryResponse:
+    async def query(self, request: QueryRequest, defer_verification: bool = False) -> QueryResponse:
         """Execute the full query pipeline.
 
         Pipeline steps:
@@ -176,14 +177,19 @@ class QueryService:
             )
         gen_time = (time.perf_counter() - gen_start) * 1000
 
-        # Step 5: Verify faithfulness
-        logger.debug("Step 4: Verifying faithfulness")
-        faith_start = time.perf_counter()
-        faithfulness_result = await self._faithfulness.verify(
-            answer=answer,
-            chunks=chunks,
-        )
-        faith_time = (time.perf_counter() - faith_start) * 1000
+        # Step 5: Verify faithfulness (skipped here when deferred — the HTTP
+        # layer schedules complete_verification() as a background task so the
+        # answer returns without waiting for the slowest pipeline stage)
+        faithfulness_result: FaithfulnessResult | None = None
+        faith_time: float | None = None
+        if not defer_verification:
+            logger.debug("Step 4: Verifying faithfulness")
+            faith_start = time.perf_counter()
+            faithfulness_result = await self._faithfulness.verify(
+                answer=answer,
+                chunks=chunks,
+            )
+            faith_time = (time.perf_counter() - faith_start) * 1000
 
         total_time = (time.perf_counter() - total_start) * 1000
 
@@ -205,6 +211,7 @@ class QueryService:
             citations=citations,
             retrieved_chunks=retrieved_chunks,
             faithfulness=faithfulness_result,
+            faithfulness_status="pending" if defer_verification else "completed",
             trace=trace,
         )
 
@@ -215,6 +222,53 @@ class QueryService:
         logger.info(f"Query {query_id} completed in {total_time:.1f}ms")
 
         return response
+
+    async def complete_verification(self, response: QueryResponse) -> QueryResponse:
+        """Verify a deferred response and persist the outcome.
+
+        Runs as a background task after the answer was already returned, so it
+        never raises: verification failures are persisted as status "failed".
+        Returns the updated response; the input object is not mutated.
+        """
+        chunks = [
+            Chunk(
+                id=rc.chunk_id,
+                paper_id=rc.paper_id,
+                content=rc.content,
+                chunk_index=i,
+                metadata={"paper_title": rc.paper_title},
+            )
+            for i, rc in enumerate(response.retrieved_chunks)
+        ]
+
+        faith_start = time.perf_counter()
+        try:
+            result = await self._faithfulness.verify(answer=response.answer, chunks=chunks)
+        except Exception:
+            logger.exception(f"Deferred verification failed for query {response.query_id}")
+            updated = response.model_copy(update={"faithfulness_status": "failed"})
+        else:
+            faith_time = (time.perf_counter() - faith_start) * 1000
+            updated = response.model_copy(
+                update={
+                    "faithfulness": result,
+                    "faithfulness_status": "completed",
+                    "trace": response.trace.model_copy(update={"faithfulness_time_ms": faith_time}),
+                }
+            )
+
+        if self._query_storage:
+            try:
+                await self._query_storage.store(updated)
+            except Exception:
+                logger.exception(
+                    f"Failed to persist deferred verification for query {response.query_id}"
+                )
+
+        logger.info(
+            f"Deferred verification for query {response.query_id}: {updated.faithfulness_status}"
+        )
+        return updated
 
     async def get_query(self, query_id: str) -> QueryResponse:
         """Retrieve a stored query response by ID.

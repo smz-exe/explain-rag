@@ -26,5 +26,7 @@ class ExplanationTrace(BaseModel):
         default=None, description="Time for reranking (if enabled)"
     )
     generation_time_ms: float = Field(description="Time for LLM generation")
-    faithfulness_time_ms: float = Field(description="Time for faithfulness verification")
+    faithfulness_time_ms: float | None = Field(
+        default=None, description="Time for faithfulness verification (None while pending)"
+    )
     total_time_ms: float = Field(description="Total pipeline time")

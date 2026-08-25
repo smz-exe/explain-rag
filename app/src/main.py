@@ -317,7 +317,7 @@ def create_app(
     app.include_router(coordinates.create_router(coordinates_service))
     app.include_router(coordinates.create_admin_router(coordinates_service))
     app.include_router(health.create_router(vector_store))
-    app.include_router(query.create_router(query_service))
+    app.include_router(query.create_router(query_service, settings))
     app.include_router(stats.create_router(vector_store, query_storage))
     app.include_router(evaluation.create_router(evaluator, query_storage))
 

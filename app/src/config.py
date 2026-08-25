@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     claude_timeout: float = 120.0  # Timeout in seconds for Claude API calls
     claude_max_retries: int = 2  # Max retries for transient failures
 
+    # Defer faithfulness verification to a background task so /query returns
+    # as soon as the answer is generated (verification dominates latency)
+    deferred_verification: bool = True
+
     # HTTP hardening
     max_request_body_bytes: int = 1_048_576  # Reject request bodies larger than 1 MiB
 

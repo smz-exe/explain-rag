@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from limits import parse
 from limits.aio.storage import MemoryStorage
 from limits.aio.strategies import MovingWindowRateLimiter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from slowapi.util import get_remote_address
 
 from src.application.query_service import QueryService
+from src.config import Settings
+from src.domain.entities.explanation import FaithfulnessResult
 from src.domain.entities.query import QueryRequest, QueryResponse
 from src.domain.ports.query_storage import QueryNotFoundError
 
@@ -43,6 +45,19 @@ async def rate_limit_dependency(request: Request) -> None:
         raise RateLimitExceeded(None)  # type: ignore[arg-type]
 
 
+class FaithfulnessStatusResponse(BaseModel):
+    """Polling response for deferred faithfulness verification."""
+
+    query_id: str
+    status: str = Field(description="completed | pending | failed")
+    faithfulness: FaithfulnessResult | None = Field(
+        default=None, description="The report once verification completed"
+    )
+    faithfulness_time_ms: float | None = Field(
+        default=None, description="Verification duration once completed"
+    )
+
+
 class QuerySummary(BaseModel):
     """Summary of a stored query."""
 
@@ -59,11 +74,12 @@ class QueriesResponse(BaseModel):
     total: int
 
 
-def create_router(query_service: QueryService) -> APIRouter:
+def create_router(query_service: QueryService, settings: Settings) -> APIRouter:
     """Create the query router.
 
     Args:
         query_service: The query service instance.
+        settings: Application settings (controls deferred verification).
 
     Returns:
         Configured APIRouter.
@@ -75,18 +91,48 @@ def create_router(query_service: QueryService) -> APIRouter:
     router = APIRouter(prefix="/query", tags=["query"])
 
     @router.post("", response_model=QueryResponse, dependencies=[Depends(rate_limit_dependency)])
-    async def query(query_request: QueryRequest) -> QueryResponse:
+    async def query(
+        query_request: QueryRequest, background_tasks: BackgroundTasks
+    ) -> QueryResponse:
         """Submit a question and receive an explained answer.
 
         The response includes:
         - Generated answer with inline citations [1], [2], etc.
         - Retrieved chunks with relevance scores
-        - Faithfulness verification with per-claim breakdown
+        - Faithfulness verification (deferred by default: the answer returns
+          immediately with faithfulness_status "pending"; poll
+          GET /query/{id}/faithfulness for the report)
         - Timing trace for the pipeline
 
         Rate limited to prevent API abuse (default: 10 requests/minute per IP).
         """
-        return await query_service.query(query_request)
+        response = await query_service.query(
+            query_request, defer_verification=settings.deferred_verification
+        )
+        if response.faithfulness_status == "pending":
+            background_tasks.add_task(query_service.complete_verification, response)
+        return response
+
+    @router.get("/{query_id}/faithfulness", response_model=FaithfulnessStatusResponse)
+    async def get_faithfulness(query_id: str) -> FaithfulnessStatusResponse:
+        """Poll the faithfulness verification result for a query.
+
+        Returns status "pending" until the background verification finishes,
+        then "completed" with the full report (or "failed").
+        """
+        try:
+            stored = await query_service.get_query(query_id)
+        except QueryNotFoundError:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Query not found: {query_id}",
+            ) from None
+        return FaithfulnessStatusResponse(
+            query_id=query_id,
+            status=stored.faithfulness_status,
+            faithfulness=stored.faithfulness,
+            faithfulness_time_ms=stored.trace.faithfulness_time_ms,
+        )
 
     @router.get("/{query_id}/explanation", response_model=QueryResponse)
     async def get_explanation(query_id: str) -> QueryResponse:
@@ -214,12 +260,14 @@ def _format_query_as_markdown(query: QueryResponse) -> str:
         [
             "## Faithfulness",
             "",
-            f"**Overall Score:** {query.faithfulness.score:.0%}",
+            f"**Overall Score:** {query.faithfulness.score:.0%}"
+            if query.faithfulness
+            else f"**Verification:** {query.faithfulness_status}",
             "",
         ]
     )
 
-    if query.faithfulness.claims:
+    if query.faithfulness and query.faithfulness.claims:
         lines.append("### Claims")
         lines.append("")
         for claim in query.faithfulness.claims:
@@ -244,7 +292,9 @@ def _format_query_as_markdown(query: QueryResponse) -> str:
     lines.extend(
         [
             f"- Generation: {query.trace.generation_time_ms:.0f}ms",
-            f"- Faithfulness: {query.trace.faithfulness_time_ms:.0f}ms",
+            f"- Faithfulness: {query.trace.faithfulness_time_ms:.0f}ms"
+            if query.trace.faithfulness_time_ms is not None
+            else "- Faithfulness: pending",
             f"- **Total: {query.trace.total_time_ms:.0f}ms**",
             "",
             "---",
