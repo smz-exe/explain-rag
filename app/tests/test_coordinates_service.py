@@ -438,3 +438,50 @@ class TestCoordinatesServiceWithStorage:
         # Clear cache should work normally
         await service.clear_cache()
         assert service.is_computed is False
+
+
+class TestEnsureComputed:
+    """ensure_computed() lets startup self-heal an empty coordinates cache.
+
+    Production stores the cache in ephemeral SQLite, so every deploy wipes
+    it; without this the Research Atlas stays empty until an admin manually
+    triggers a recompute.
+    """
+
+    def make_service(self, chunks) -> CoordinatesService:
+        store = MockVectorStorePort(chunks=chunks)
+        return CoordinatesService(
+            vector_store=store,
+            dim_reducer=MockDimensionalityReductionPort(),
+            clusterer=MockClusteringPort(),
+        )
+
+    @pytest.mark.asyncio
+    async def test_recomputes_when_cache_is_empty(self, sample_chunks):
+        service = self.make_service(sample_chunks)
+        assert service.is_computed is False
+
+        await service.ensure_computed()
+
+        assert service.is_computed is True
+        coords = await service.get_paper_coordinates()
+        assert len(coords) > 0
+
+    @pytest.mark.asyncio
+    async def test_skips_recompute_when_already_computed(self, sample_chunks):
+        service = self.make_service(sample_chunks)
+        await service.recompute_all()
+        first_computed_at = service.computed_at
+
+        await service.ensure_computed()
+
+        assert service.computed_at is first_computed_at
+
+    @pytest.mark.asyncio
+    async def test_empty_corpus_leaves_cache_empty(self):
+        service = self.make_service(chunks=[])
+
+        await service.ensure_computed()
+
+        assert service.is_computed is False
+        assert await service.get_paper_coordinates() == []

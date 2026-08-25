@@ -238,6 +238,13 @@ def create_app(
         # Startup
         logger.info("Running startup tasks...")
         await coordinates_service.initialize()
+        if settings.recompute_coordinates_on_startup:
+            # Self-heal an empty Research Atlas after deploys (the coordinates
+            # cache lives in ephemeral storage); never fail startup over it
+            try:
+                await coordinates_service.ensure_computed()
+            except Exception:
+                logger.exception("Startup coordinate recompute failed; Atlas stays empty")
         logger.info("Startup tasks completed")
         yield
         # Shutdown - close connection pools

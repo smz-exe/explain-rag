@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # HTTP hardening
     max_request_body_bytes: int = 1_048_576  # Reject request bodies larger than 1 MiB
 
+    # Research Atlas: recompute UMAP coordinates on startup when the cache is
+    # empty (production cache storage is ephemeral and wiped by deploys)
+    recompute_coordinates_on_startup: bool = True
+
     # Embedding Configuration (FastEmbed with ONNX Runtime)
     embedding_provider: str = "local"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"  # FastEmbed format

@@ -65,6 +65,19 @@ class CoordinatesService:
         except Exception as e:
             logger.warning(f"Failed to load coordinates from storage: {e}")
 
+    async def ensure_computed(self) -> None:
+        """Recompute coordinates if the cache is empty.
+
+        Call this on startup after initialize(): production persists the
+        cache in ephemeral storage, so a deploy leaves the Research Atlas
+        empty until a recompute runs. recompute_all() handles an empty
+        corpus gracefully, so no pre-check is needed.
+        """
+        if self.is_computed:
+            return
+        logger.info("Coordinates cache empty — recomputing from vector store")
+        await self.recompute_all()
+
     @property
     def is_computed(self) -> bool:
         """Check if coordinates have been computed."""
