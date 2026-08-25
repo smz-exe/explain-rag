@@ -1,5 +1,7 @@
 # ExplainRAG
 
+[![CI](https://github.com/smz-exe/explain-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/smz-exe/explain-rag/actions/workflows/ci.yml)
+
 Explainable Retrieval-Augmented Generation for academic papers.
 
 ## Quick Start

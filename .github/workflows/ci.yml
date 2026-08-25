@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (lint + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    services:
+      postgres:
+        # pgvector-enabled Postgres so the PostgreSQL adapter tests run in CI
+        # (they skip unless DATABASE_URL points at 127.0.0.1:54322, mirroring
+        # the local Supabase dev setup)
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 54322:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: app/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Lint (ruff check)
+        run: uv run ruff check src/ tests/
+
+      - name: Format check (ruff format)
+        run: uv run ruff format --check src/ tests/
+
+      - name: Apply database migrations
+        run: |
+          for migration in supabase/migrations/*.sql; do
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done
+
+      - name: Run tests with coverage gate
+        run: uv run pytest tests/ --cov=src --cov-report=term --cov-fail-under=80
+
+  frontend:
+    name: Frontend (lint + typecheck + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint (eslint)
+        run: pnpm lint
+
+      - name: Format check (prettier)
+        run: pnpm format:check
+
+      - name: Type check (tsc)
+        run: pnpm exec tsc --noEmit
+
+      - name: Build
+        # `pnpm build` would run the orval prebuild, which needs a live
+        # backend for the OpenAPI spec. CI builds against the committed,
+        # generated client in src/api instead.
+        run: pnpm exec next build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+  deploy:
+    name: Deploy backend to Fly.io
+    needs: [backend, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: fly-deploy
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy
+        # Skips (green) until the FLY_API_TOKEN repository secret is configured
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "FLY_API_TOKEN secret not set — skipping deploy."
+            exit 0
+          fi
+          flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
