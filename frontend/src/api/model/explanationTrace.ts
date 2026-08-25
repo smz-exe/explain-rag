@@ -18,8 +18,8 @@ export interface ExplanationTrace {
   reranking_time_ms?: number | null;
   /** Time for LLM generation */
   generation_time_ms: number;
-  /** Time for faithfulness verification */
-  faithfulness_time_ms: number;
+  /** Time for faithfulness verification (None while pending) */
+  faithfulness_time_ms?: number | null;
   /** Total pipeline time */
   total_time_ms: number;
 }

@@ -8,6 +8,7 @@
 import type { Citation } from './citation';
 import type { ExplanationTrace } from './explanationTrace';
 import type { FaithfulnessResult } from './faithfulnessResult';
+import type { QueryResponseFaithfulnessStatus } from './queryResponseFaithfulnessStatus';
 import type { RetrievedChunk } from './retrievedChunk';
 
 /**
@@ -24,8 +25,10 @@ export interface QueryResponse {
   citations: Citation[];
   /** Retrieved chunks with scores */
   retrieved_chunks: RetrievedChunk[];
-  /** Faithfulness verification result */
-  faithfulness: FaithfulnessResult;
+  /** Faithfulness verification result (None while verification is pending) */
+  faithfulness?: FaithfulnessResult | null;
+  /** Verification lifecycle; 'pending' when verification runs after the answer */
+  faithfulness_status?: QueryResponseFaithfulnessStatus;
   /** Timing breakdown */
   trace: ExplanationTrace;
 }

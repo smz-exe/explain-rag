@@ -14,12 +14,15 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { useState } from "react";
 import type { FaithfulnessResult } from "@/api/model";
 
 interface FaithfulnessReportProps {
-  faithfulness: FaithfulnessResult;
+  faithfulness: FaithfulnessResult | null | undefined;
+  /** Verification lifecycle: "completed" | "pending" | "failed" */
+  status?: string;
 }
 
 const verdictConfig: Record<
@@ -51,8 +54,33 @@ const verdictConfig: Record<
   },
 };
 
-export function FaithfulnessReport({ faithfulness }: FaithfulnessReportProps) {
+export function FaithfulnessReport({
+  faithfulness,
+  status = "completed",
+}: FaithfulnessReportProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  if (!faithfulness) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Faithfulness Report</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {status === "failed" ? (
+            <p className="text-muted-foreground text-sm">
+              Verification unavailable for this answer.
+            </p>
+          ) : (
+            <div className="text-muted-foreground flex items-center gap-2 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Verifying the answer against its sources…
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
 
   const scorePercent = Math.round(faithfulness.score * 100);
   const scoreColor =

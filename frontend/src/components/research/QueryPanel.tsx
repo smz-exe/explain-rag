@@ -16,6 +16,7 @@ import {
 } from "@/components";
 import type { QueryInputHandle } from "@/components/QueryInput";
 import type { QueryResponse } from "@/api/model";
+import { useGetFaithfulnessQueryQueryIdFaithfulnessGet } from "@/api/queries/query/query";
 
 interface QueryPanelProps {
   /** Current query response */
@@ -60,6 +61,28 @@ export const QueryPanel = forwardRef<QueryInputHandle, QueryPanelProps>(
     },
     ref
   ) {
+    // Verification is deferred server-side: poll until it completes
+    const verificationPending = response?.faithfulness_status === "pending";
+    const faithfulnessPoll = useGetFaithfulnessQueryQueryIdFaithfulnessGet(
+      response?.query_id ?? "",
+      {
+        query: {
+          enabled: !!response && verificationPending,
+          refetchInterval: (query) => {
+            const data = query.state.data;
+            const done = data?.status === 200 && data.data.status !== "pending";
+            return done ? false : 2000;
+          },
+        },
+      }
+    );
+    const polled =
+      faithfulnessPoll.data?.status === 200 ? faithfulnessPoll.data.data : null;
+    const faithfulness = response?.faithfulness ?? polled?.faithfulness ?? null;
+    const faithfulnessStatus = response?.faithfulness
+      ? "completed"
+      : (polled?.status ?? response?.faithfulness_status);
+
     return (
       <div className={cn("flex flex-col gap-4 p-4", className)}>
         {/* Query Input */}
@@ -105,7 +128,10 @@ export const QueryPanel = forwardRef<QueryInputHandle, QueryPanelProps>(
 
             {/* Faithfulness Report */}
             <section>
-              <FaithfulnessReport faithfulness={response.faithfulness} />
+              <FaithfulnessReport
+                faithfulness={faithfulness}
+                status={faithfulnessStatus}
+              />
             </section>
 
             {/* Retrieved Chunks */}

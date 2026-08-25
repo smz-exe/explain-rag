@@ -25,6 +25,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  FaithfulnessStatusResponse,
   HTTPValidationError,
   ListQueriesQueryListGetParams,
   QueriesResponse,
@@ -87,7 +88,9 @@ export const getQueryQueryPostUrl = () => {
  * The response includes:
  * - Generated answer with inline citations [1], [2], etc.
  * - Retrieved chunks with relevance scores
- * - Faithfulness verification with per-claim breakdown
+ * - Faithfulness verification (deferred by default: the answer returns
+ *   immediately with faithfulness_status "pending"; poll
+ *   GET /query/{id}/faithfulness for the report)
  * - Timing trace for the pipeline
  *
  * Rate limited to prevent API abuse (default: 10 requests/minute per IP).
@@ -159,7 +162,130 @@ export const useQueryQueryPost = <TError = HTTPValidationError,
       > => {
       return useMutation(getQueryQueryPostMutationOptions(options), queryClient);
     }
-    export type getExplanationQueryQueryIdExplanationGetResponse200 = {
+    export type getFaithfulnessQueryQueryIdFaithfulnessGetResponse200 = {
+  data: FaithfulnessStatusResponse
+  status: 200
+}
+
+export type getFaithfulnessQueryQueryIdFaithfulnessGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getFaithfulnessQueryQueryIdFaithfulnessGetResponseSuccess = (getFaithfulnessQueryQueryIdFaithfulnessGetResponse200) & {
+  headers: Headers;
+};
+export type getFaithfulnessQueryQueryIdFaithfulnessGetResponseError = (getFaithfulnessQueryQueryIdFaithfulnessGetResponse422) & {
+  headers: Headers;
+};
+
+export type getFaithfulnessQueryQueryIdFaithfulnessGetResponse = (getFaithfulnessQueryQueryIdFaithfulnessGetResponseSuccess | getFaithfulnessQueryQueryIdFaithfulnessGetResponseError)
+
+export const getGetFaithfulnessQueryQueryIdFaithfulnessGetUrl = (queryId: string,) => {
+
+
+
+
+  return `/query/${queryId}/faithfulness`
+}
+
+/**
+ * Poll the faithfulness verification result for a query.
+ *
+ * Returns status "pending" until the background verification finishes,
+ * then "completed" with the full report (or "failed").
+ * @summary Get Faithfulness
+ */
+export const getFaithfulnessQueryQueryIdFaithfulnessGet = async (queryId: string, options?: Parameters<typeof customFetch>[1]): Promise<getFaithfulnessQueryQueryIdFaithfulnessGetResponse> => {
+
+  return customFetch<getFaithfulnessQueryQueryIdFaithfulnessGetResponse>(getGetFaithfulnessQueryQueryIdFaithfulnessGetUrl(queryId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFaithfulnessQueryQueryIdFaithfulnessGetQueryKey = (queryId: string,) => {
+    return [
+    `/query/${queryId}/faithfulness`
+    ] as const;
+    }
+
+
+export const getGetFaithfulnessQueryQueryIdFaithfulnessGetQueryOptions = <TData = Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>, TError = HTTPValidationError>(queryId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFaithfulnessQueryQueryIdFaithfulnessGetQueryKey(queryId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>> = ({ signal }) => getFaithfulnessQueryQueryIdFaithfulnessGet(queryId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: queryId !== null && queryId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFaithfulnessQueryQueryIdFaithfulnessGetQueryResult = NonNullable<Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>>
+export type GetFaithfulnessQueryQueryIdFaithfulnessGetQueryError = HTTPValidationError
+
+
+export function useGetFaithfulnessQueryQueryIdFaithfulnessGet<TData = Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>, TError = HTTPValidationError>(
+ queryId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>,
+          TError,
+          Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFaithfulnessQueryQueryIdFaithfulnessGet<TData = Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>, TError = HTTPValidationError>(
+ queryId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>,
+          TError,
+          Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFaithfulnessQueryQueryIdFaithfulnessGet<TData = Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>, TError = HTTPValidationError>(
+ queryId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Faithfulness
+ */
+
+export function useGetFaithfulnessQueryQueryIdFaithfulnessGet<TData = Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>, TError = HTTPValidationError>(
+ queryId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFaithfulnessQueryQueryIdFaithfulnessGet>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFaithfulnessQueryQueryIdFaithfulnessGetQueryOptions(queryId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type getExplanationQueryQueryIdExplanationGetResponse200 = {
   data: QueryResponse
   status: 200
 }
