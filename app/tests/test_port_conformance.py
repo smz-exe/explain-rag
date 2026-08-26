@@ -11,7 +11,10 @@ filter shape PostgresVectorStore could not bind, every test passed because the
 mock implemented a different contract, and every paper-scoped query 500'd.
 """
 
+import ast
 import inspect
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -120,3 +123,68 @@ class TestVectorStoreFilterContract:
 
         assert len(results) == 2
         assert {chunk.paper_id for chunk, _ in results} == {"paper-002"}
+
+
+class TestArchitectureRules:
+    """The rules CLAUDE.md advertises, checked mechanically.
+
+    A documented rule nobody verifies is a claim, not a constraint — the domain
+    layer was described as importing "only stdlib" while every entity imported
+    pydantic.
+    """
+
+    ALLOWED_DOMAIN_PACKAGES = {"pydantic", "src"}
+
+    def _imported_roots(self, path: Path) -> set[str]:
+        tree = ast.parse(path.read_text())
+        roots: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                roots.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                roots.add(node.module.split(".")[0])
+        return roots
+
+    def _python_files(self, *parts: str) -> list[Path]:
+        root = Path(__file__).resolve().parent.parent / "src"
+        return sorted(root.joinpath(*parts).rglob("*.py"))
+
+    def test_domain_imports_no_sdk_driver_or_framework(self):
+        offenders: dict[str, set[str]] = {}
+        for path in self._python_files("domain"):
+            external = {
+                root
+                for root in self._imported_roots(path)
+                if root not in self.ALLOWED_DOMAIN_PACKAGES and root not in sys.stdlib_module_names
+            }
+            if external:
+                offenders[str(path.name)] = external
+
+        assert not offenders, f"domain layer imports external packages: {offenders}"
+
+    def test_application_never_imports_adapters(self):
+        offenders: dict[str, list[str]] = {}
+        for path in self._python_files("application"):
+            bad = [
+                node.module
+                for node in ast.walk(ast.parse(path.read_text()))
+                if isinstance(node, ast.ImportFrom)
+                and node.module
+                and node.module.startswith("src.adapters")
+            ]
+            if bad:
+                offenders[path.name] = bad
+
+        assert not offenders, f"application layer reaches into adapters: {offenders}"
+
+    def test_sdk_imports_stay_in_outbound_adapters(self):
+        sdk_packages = {"anthropic", "asyncpg", "arxiv", "fastembed", "fitz", "umap", "hdbscan"}
+        offenders: dict[str, set[str]] = {}
+        for path in self._python_files():
+            if "adapters/outbound" in path.as_posix():
+                continue
+            used = self._imported_roots(path) & sdk_packages
+            if used:
+                offenders[path.as_posix().split("src/")[-1]] = used
+
+        assert not offenders, f"SDK imports outside outbound adapters: {offenders}"

@@ -165,3 +165,49 @@ class TestSummarize:
         assert summary["insufficient_context_count"] == 1
         assert summary["timings_ms"]["generation"]["median"] == 150.0
         assert summary["signals"]["faithfulness_mean"] == pytest.approx(0.5)
+
+
+class TestUnverifiedRuns:
+    """A run whose verification never happened must not read as a zero score.
+
+    Coercing an absent FaithfulnessResult to 0.0 made "verification did not
+    run" indistinguishable from "not one claim was supported", and that floor
+    of zeros went straight into the committed benchmark means.
+    """
+
+    def _unverified(self) -> QueryResponse:
+        chunks = [make_chunk(1, 1, "paper-1")]
+        return make_response(chunks).model_copy(
+            update={"faithfulness": None, "faithfulness_status": "pending"}
+        )
+
+    def test_absent_verification_records_no_score(self):
+        record = record_from_response(
+            {"id": "q1", "paper_id": "paper-1", "arxiv_id": "1234.5", "question": "Q?"},
+            self._unverified(),
+        )
+
+        assert record["faithfulness_score"] is None
+        assert record["n_claims"] is None
+
+    def test_mean_ignores_unscored_runs(self):
+        chunks = [make_chunk(1, 1, "paper-1")]
+        question = {"id": "q1", "paper_id": "paper-1", "arxiv_id": "1234.5", "question": "Q?"}
+        scored = record_from_response(question, make_response(chunks))
+        unscored = record_from_response(question, self._unverified())
+
+        summary = summarize([scored, unscored], top_k=10)
+
+        # 0.8 alone, not (0.8 + 0.0) / 2
+        assert summary["signals"]["faithfulness_mean"] == pytest.approx(0.8)
+        assert summary["signals"]["faithfulness_scored_runs"] == 1
+
+    def test_mean_is_none_when_nothing_was_verified(self):
+        record = record_from_response(
+            {"id": "q1", "paper_id": "paper-1", "arxiv_id": "1234.5", "question": "Q?"},
+            self._unverified(),
+        )
+
+        summary = summarize([record], top_k=10)
+
+        assert summary["signals"]["faithfulness_mean"] is None

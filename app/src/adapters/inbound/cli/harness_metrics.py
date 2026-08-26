@@ -86,9 +86,11 @@ def record_from_response(question: dict[str, Any], response: QueryResponse) -> d
             default=0,
         ),
         "n_citations": len(response.citations),
-        # The harness runs the synchronous pipeline, so verification is present
-        "n_claims": len(response.faithfulness.claims) if response.faithfulness else 0,
-        "faithfulness_score": response.faithfulness.score if response.faithfulness else 0.0,
+        # None, not 0.0: "verification did not run" must stay distinguishable
+        # from "every claim was unsupported", or a benchmark run against a
+        # deferred backend silently reports a floor of zeros as real scores.
+        "n_claims": len(response.faithfulness.claims) if response.faithfulness else None,
+        "faithfulness_score": response.faithfulness.score if response.faithfulness else None,
         "timings": {
             "embedding_ms": trace.embedding_time_ms,
             "retrieval_ms": trace.retrieval_time_ms,
@@ -98,6 +100,11 @@ def record_from_response(question: dict[str, Any], response: QueryResponse) -> d
             "total_ms": trace.total_time_ms,
         },
     }
+
+
+def _mean_or_none(values: list[float]) -> float | None:
+    """Mean of the values, or None when there is nothing to average."""
+    return sum(values) / len(values) if values else None
 
 
 def summarize(records: list[dict[str, Any]], top_k: int) -> dict[str, Any]:
@@ -144,8 +151,13 @@ def summarize(records: list[dict[str, Any]], top_k: int) -> dict[str, Any]:
             "total": stage_stats("total_ms"),
         },
         "signals": {
-            "faithfulness_mean": (
-                sum(r["faithfulness_score"] for r in records) / len(records) if records else 0.0
+            # Averaged over the runs that actually have a score; a run with
+            # unverified answers reports None rather than a diluted mean.
+            "faithfulness_mean": _mean_or_none(
+                [r["faithfulness_score"] for r in records if r["faithfulness_score"] is not None]
+            ),
+            "faithfulness_scored_runs": sum(
+                1 for r in records if r["faithfulness_score"] is not None
             ),
         },
     }
