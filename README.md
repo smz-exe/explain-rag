@@ -12,7 +12,7 @@ Explainable Retrieval-Augmented Generation over arXiv papers. Every answer carri
 ## Features
 
 - **Cited answers** — bracket citations map every claim in the answer to the retrieved chunks it came from
-- **Claim-level faithfulness verification** — the answer is decomposed into claims and each is checked against the retrieved context, with verdict, evidence chunks, and reasoning. Verification runs as a background task, so the answer returns in ~8s instead of ~34s and the report fills in while you read
+- **Claim-level faithfulness verification** — the answer is decomposed into claims and each is checked against the retrieved context, with verdict, evidence chunks, and reasoning. Verification runs as a background task, so the answer returns in ~9s instead of ~42s and the report fills in while you read
 - **Cross-encoder reranking** — optional; each chunk displays its vector rank next to its reranked rank
 - **Research Atlas** — UMAP + HDBSCAN projection of all paper embeddings into 3D; queries are projected into the same space with connections to the retrieved papers
 - **Timing trace** — measured latency for every pipeline stage
@@ -23,6 +23,8 @@ Explainable Retrieval-Augmented Generation over arXiv papers. Every answer carri
 
 Hexagonal (ports & adapters). The domain and application layers import no SDKs; every external system sits behind a port ABC and is injected in `main.py`.
 
+These boundaries are enforced by tests, not by convention. `test_port_conformance.py` walks the AST of every module and fails the build if the domain imports a driver or framework, the application reaches into an adapter, an SDK escapes an outbound adapter, or an HTTP router takes more than one port instead of delegating to a service.
+
 ```mermaid
 flowchart LR
     subgraph Inbound
@@ -30,7 +32,7 @@ flowchart LR
         CLI[ingest / eval CLIs]
     end
     subgraph Application
-        SVC[QueryService · IngestionService · CoordinatesService]
+        SVC[Query · Ingestion · Paper<br>Evaluation · Stats · Coordinates]
     end
     subgraph Ports
         P[12 port ABCs]
@@ -50,19 +52,21 @@ flowchart LR
     P --> ARX
 ```
 
-Query pipeline, with measured median latencies (28-question harness run):
+Query pipeline, with measured median latencies (28-question harness run on `claude-sonnet-5`):
 
 ```mermaid
 flowchart LR
-    Q[question] --> E[embed<br>14ms] --> R[pgvector top-k<br>205ms] --> RR[rerank<br>142ms] --> G[generate + cite<br>8.3s] --> A[answer returned]
-    A -. background task .-> V[verify claims<br>23.5s] -. poll .-> F[faithfulness report]
+    Q[question] --> E[embed<br>9ms] --> R[pgvector top-k<br>168ms] --> RR[rerank<br>124ms] --> G[generate + cite<br>8.6s] --> A[answer returned]
+    A -. background task .-> V[verify claims<br>34.0s] -. poll .-> F[faithfulness report]
 ```
 
 Verification dominates end-to-end latency, so it is deferred: the API responds after generation with `faithfulness_status: "pending"` and the client polls `GET /query/{id}/faithfulness`.
 
+Reading a stored query takes more than knowing its id. `POST /query` returns a short-lived capability token scoped to that single query, and the read endpoints (explanation, faithfulness, export) accept either that token or an admin session. The token is sent in the `Authorization` header rather than the URL, so it stays out of browser history and server logs.
+
 ## Evaluation
 
-`app/eval/` contains a quality harness: a committed 28-question set generated one-per-paper from abstracts, so each question has its source paper as retrieval ground truth by construction — no LLM judge in the retrieval metrics. Committed results: source-paper hit rate 0.82 @ top-10; reranking improves hit@1 from 0.46 to 0.61 within the retrieved window. Method and caveats: [app/eval/README.md](app/eval/README.md).
+`app/eval/` contains a quality harness: a committed 28-question set generated one-per-paper from abstracts, so each question has its source paper as retrieval ground truth by construction — no LLM judge in the retrieval metrics. Committed results: source-paper hit rate 0.82 @ top-10; reranking improves hit@1 from 0.46 to 0.61 within the retrieved window. These figures are identical across the `claude-sonnet-4-5` and `claude-sonnet-5` runs, which is the expected consequence of keeping the LLM out of the retrieval metrics: only the local embedding and reranking models decide them. Method and caveats: [app/eval/README.md](app/eval/README.md).
 
 ## Stack
 
@@ -75,8 +79,8 @@ Verification dominates end-to-end latency, so it is deferred: the API responds a
 
 ## Quality
 
-- 292 backend tests with an enforced 80% coverage gate; mypy and ruff in CI
-- 44 Playwright E2E checks (query flow, responsiveness, error handling, admin auth)
+- 416 backend tests with an enforced 80% coverage gate; mypy and ruff in CI
+- 68 Playwright E2E checks covering the query flow, deferred verification, admin auth and ingest, error handling, and responsive layout
 - Reproducible builds: Docker installs from `uv.lock`, the generated API client is committed, pnpm is pinned via `packageManager`
 - CI deploys to Fly.io only after every gate passes
 
@@ -98,7 +102,7 @@ pnpm test:e2e
 
 ```
 app/
-  src/domain/        # entities + port ABCs (stdlib only)
+  src/domain/        # entities + port ABCs (stdlib and pydantic only)
   src/application/   # services
   src/adapters/      # inbound HTTP/CLI, outbound integrations
   eval/              # quality harness: question set, results, methodology
