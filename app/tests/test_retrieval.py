@@ -40,7 +40,7 @@ class TestVectorStoreSearch:
         results = await vector_store.search(
             query_embedding=query_embedding,
             top_k=10,
-            filter={"paper_id": {"$in": ["paper-001"]}},
+            paper_ids=["paper-001"],
         )
 
         # Should only return chunks from paper-001

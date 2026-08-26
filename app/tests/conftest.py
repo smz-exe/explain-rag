@@ -90,6 +90,21 @@ async def authenticated_client(app):
         yield client
 
 
+# Test helpers
+
+
+async def submit_query(client, question: str = "What is self-attention?") -> tuple[str, dict]:
+    """Submit a query and return its id plus headers authorizing reads of it.
+
+    Reading a stored query needs the capability token that POST /query issues,
+    so tests that follow up on a query must carry it.
+    """
+    response = await client.post("/query", json={"question": question})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    return body["query_id"], {"Authorization": f"Bearer {body['share_token']}"}
+
+
 # Sample data fixtures
 
 
@@ -138,6 +153,34 @@ def sample_chunks() -> list[Chunk]:
     ]
 
 
+@pytest.fixture
+def mixed_paper_chunks(sample_chunks: list[Chunk]) -> list[Chunk]:
+    """Chunks spanning two papers, so paper_id filtering is observable.
+
+    A filter test against sample_chunks alone cannot fail: every chunk there
+    belongs to paper-001, so even a no-op filter passes.
+    """
+    return [
+        *sample_chunks,
+        Chunk(
+            id="chunk-101",
+            paper_id="paper-002",
+            content="Residual learning reformulates layers as learning residual functions.",
+            chunk_index=0,
+            section="Introduction",
+            metadata={"paper_title": "Deep Residual Learning"},
+        ),
+        Chunk(
+            id="chunk-102",
+            paper_id="paper-002",
+            content="We evaluate residual nets with a depth of up to 152 layers on ImageNet.",
+            chunk_index=1,
+            section="Experiments",
+            metadata={"paper_title": "Deep Residual Learning"},
+        ),
+    ]
+
+
 # Mock adapters
 
 
@@ -175,16 +218,27 @@ class MockVectorStorePort(VectorStorePort):
         self,
         query_embedding: list[float],
         top_k: int = 10,
-        filter: dict | None = None,
+        paper_ids: list[str] | None = None,
     ) -> list[tuple[Chunk, float]]:
-        """Return stored chunks with mock scores."""
+        """Return stored chunks with mock scores.
+
+        Rejects any paper_ids shape PostgresVectorStore could not bind to a
+        uuid[] parameter, so contract drift between mock and real adapter
+        fails loudly here instead of 500ing in production.
+        """
+        if paper_ids is not None and (
+            not isinstance(paper_ids, list) or not all(isinstance(p, str) for p in paper_ids)
+        ):
+            raise TypeError(f"paper_ids must be a list[str] or None, got {paper_ids!r}")
+
+        candidates = (
+            self.chunks
+            if paper_ids is None
+            else [c for c in self.chunks if c.paper_id in paper_ids]
+        )
+
         results = []
-        for i, chunk in enumerate(self.chunks[:top_k]):
-            # Apply filter if specified
-            if filter and "paper_id" in filter:
-                filter_values = filter["paper_id"].get("$in", [])
-                if chunk.paper_id not in filter_values:
-                    continue
+        for i, chunk in enumerate(candidates[:top_k]):
             score = 0.9 - (i * 0.1)  # Decreasing scores
             results.append((chunk, score))
         return results

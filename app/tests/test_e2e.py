@@ -98,10 +98,10 @@ class TestFullQueryPipeline:
         assert len(response.retrieved_chunks) <= 2
 
     @pytest.mark.asyncio
-    async def test_query_with_paper_filter(self, sample_chunks):
-        """Test query filtered to specific papers."""
+    async def test_query_with_paper_filter(self, mixed_paper_chunks):
+        """Test query filtered to specific papers excludes other papers."""
         embedding = MockEmbeddingPort()
-        vector_store = MockVectorStorePort(chunks=sample_chunks)
+        vector_store = MockVectorStorePort(chunks=mixed_paper_chunks)
         llm = MockLLMPort()
         faithfulness = MockFaithfulnessPort()
 
@@ -118,9 +118,26 @@ class TestFullQueryPipeline:
         )
         response = await service.query(request)
 
-        # All chunks should be from paper-001
-        for chunk in response.retrieved_chunks:
-            assert chunk.paper_id == "paper-001"
+        returned_papers = {chunk.paper_id for chunk in response.retrieved_chunks}
+        assert returned_papers == {"paper-001"}
+        # The store really does hold the excluded paper, so the assertion above
+        # fails if the filter is dropped on the way to the vector store.
+        assert any(c.paper_id == "paper-002" for c in mixed_paper_chunks)
+
+    @pytest.mark.asyncio
+    async def test_query_without_paper_filter_spans_all_papers(self, mixed_paper_chunks):
+        """Test that omitting paper_ids retrieves across every paper."""
+        service = QueryService(
+            embedding=MockEmbeddingPort(),
+            vector_store=MockVectorStorePort(chunks=mixed_paper_chunks),
+            llm=MockLLMPort(),
+            faithfulness=MockFaithfulnessPort(),
+        )
+
+        response = await service.query(QueryRequest(question="What is self-attention?"))
+
+        returned_papers = {chunk.paper_id for chunk in response.retrieved_chunks}
+        assert returned_papers == {"paper-001", "paper-002"}
 
     @pytest.mark.asyncio
     async def test_query_stores_response(self, query_service):

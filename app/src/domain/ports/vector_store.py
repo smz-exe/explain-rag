@@ -21,14 +21,16 @@ class VectorStorePort(ABC):
         self,
         query_embedding: list[float],
         top_k: int = 10,
-        filter: dict | None = None,
+        paper_ids: list[str] | None = None,
     ) -> list[tuple[Chunk, float]]:
         """Search for similar chunks by embedding vector.
 
         Args:
             query_embedding: The query embedding vector.
             top_k: Maximum number of results to return.
-            filter: Optional metadata filter (e.g., {"paper_id": "..."}).
+            paper_ids: Optional list of paper IDs to restrict the search to.
+                None searches every paper. Scoping is applied before top_k, so
+                a scoped search still returns up to top_k matching chunks.
 
         Returns:
             List of (chunk, similarity_score) tuples, sorted by relevance.

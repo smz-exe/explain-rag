@@ -73,7 +73,7 @@ class RecordingVectorStore(VectorStorePort):
         self.added_embeddings.extend(embeddings)
 
     async def search(
-        self, query_embedding: list[float], top_k: int = 5, filter: dict | None = None
+        self, query_embedding: list[float], top_k: int = 5, paper_ids: list[str] | None = None
     ) -> list[tuple[Chunk, float]]:
         return []
 

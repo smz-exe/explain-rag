@@ -7,9 +7,10 @@ import pytest
 
 from src.adapters.outbound.postgres_query_storage import PostgresQueryStorage
 from src.adapters.outbound.postgres_vector_store import PostgresVectorStore
+from src.application.query_service import QueryService
 from src.domain.entities.chunk import Chunk
 from src.domain.entities.explanation import ExplanationTrace, FaithfulnessResult
-from src.domain.entities.query import Citation, QueryResponse, RetrievedChunk
+from src.domain.entities.query import Citation, QueryRequest, QueryResponse, RetrievedChunk
 
 # Skip tests if DATABASE_URL is not set (e.g., in CI without Supabase)
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
@@ -133,7 +134,7 @@ class TestPostgresVectorStore:
 
         # Search with filter
         query_embedding = [0.15] * 384
-        results = await vector_store.search(query_embedding, top_k=5, filter={"paper_id": paper_id})
+        results = await vector_store.search(query_embedding, top_k=5, paper_ids=[paper_id])
 
         assert len(results) > 0
         for chunk, _ in results:
@@ -167,6 +168,106 @@ class TestPostgresVectorStore:
 
         # Cleanup
         await vector_store.delete_paper(paper_id)
+
+
+class TestQueryServiceAgainstPostgres:
+    """QueryService composed with the real vector store adapter.
+
+    Every other service-level test substitutes MockVectorStorePort, so a
+    contract mismatch between the service and PostgresVectorStore stays
+    invisible. These tests exercise the real binding path.
+    """
+
+    @pytest.fixture
+    async def vector_store(self):
+        store = PostgresVectorStore(DATABASE_URL)
+        yield store
+        await store.close()
+
+    @pytest.fixture
+    def two_papers(self) -> tuple[list[Chunk], list[list[float]]]:
+        """Chunks from two distinct papers, so scoping is observable."""
+        chunks: list[Chunk] = []
+        for paper_index in range(2):
+            paper_id = str(uuid.uuid4())
+            arxiv_id = f"test.{uuid.uuid4().hex[:8]}"
+            chunks.extend(
+                Chunk(
+                    id=str(uuid.uuid4()),
+                    paper_id=paper_id,
+                    content=f"Paper {paper_index} chunk {i} about machine learning.",
+                    chunk_index=i,
+                    section=f"Section {i}",
+                    metadata={"paper_title": f"Test Paper {paper_index}", "arxiv_id": arxiv_id},
+                )
+                for i in range(2)
+            )
+        embeddings = [[0.1 * (i + 1)] * 384 for i in range(len(chunks))]
+        return chunks, embeddings
+
+    async def _make_service(self, vector_store: PostgresVectorStore) -> QueryService:
+        from tests.conftest import MockEmbeddingPort, MockFaithfulnessPort, MockLLMPort
+
+        return QueryService(
+            embedding=MockEmbeddingPort(),
+            vector_store=vector_store,
+            llm=MockLLMPort(),
+            faithfulness=MockFaithfulnessPort(),
+        )
+
+    async def test_query_scoped_to_paper_ids_hits_the_real_adapter(
+        self,
+        vector_store: PostgresVectorStore,
+        two_papers: tuple[list[Chunk], list[list[float]]],
+    ):
+        """A paper-scoped query must reach Postgres and exclude other papers.
+
+        Regression test: the service used to send {"paper_id": {"$in": [...]}},
+        which asyncpg cannot bind to $2::uuid[], so every scoped query raised
+        DataError and surfaced as HTTP 500.
+        """
+        chunks, embeddings = two_papers
+        wanted_paper = chunks[0].paper_id
+        other_paper = chunks[-1].paper_id
+        assert wanted_paper != other_paper
+
+        await vector_store.add_chunks(chunks[:2], embeddings[:2])
+        await vector_store.add_chunks(chunks[2:], embeddings[2:])
+        try:
+            service = await self._make_service(vector_store)
+            response = await service.query(
+                QueryRequest(question="What is machine learning?", paper_ids=[wanted_paper])
+            )
+
+            returned_papers = {rc.paper_id for rc in response.retrieved_chunks}
+            assert returned_papers == {wanted_paper}
+        finally:
+            await vector_store.delete_paper(wanted_paper)
+            await vector_store.delete_paper(other_paper)
+
+    async def test_query_without_scope_reaches_multiple_papers(
+        self,
+        vector_store: PostgresVectorStore,
+        two_papers: tuple[list[Chunk], list[list[float]]],
+    ):
+        """An unscoped query must not be restricted to a single paper."""
+        chunks, embeddings = two_papers
+        first_paper = chunks[0].paper_id
+        second_paper = chunks[-1].paper_id
+
+        await vector_store.add_chunks(chunks[:2], embeddings[:2])
+        await vector_store.add_chunks(chunks[2:], embeddings[2:])
+        try:
+            service = await self._make_service(vector_store)
+            response = await service.query(
+                QueryRequest(question="What is machine learning?", top_k=50)
+            )
+
+            returned_papers = {rc.paper_id for rc in response.retrieved_chunks}
+            assert {first_paper, second_paper} <= returned_papers
+        finally:
+            await vector_store.delete_paper(first_paper)
+            await vector_store.delete_paper(second_paper)
 
 
 class TestPostgresQueryStorage:

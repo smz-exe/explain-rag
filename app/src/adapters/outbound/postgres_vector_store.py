@@ -161,7 +161,7 @@ class PostgresVectorStore(VectorStorePort):
         self,
         query_embedding: list[float],
         top_k: int = 10,
-        filter: dict | None = None,
+        paper_ids: list[str] | None = None,
     ) -> list[tuple[Chunk, float]]:
         """Search for similar chunks by embedding vector."""
         pool = await self._get_pool()
@@ -169,11 +169,7 @@ class PostgresVectorStore(VectorStorePort):
         embedding_vector = np.array(query_embedding, dtype=np.float32)
 
         async with pool.acquire() as conn:
-            # Build query with optional paper_id filter
-            if filter and "paper_id" in filter:
-                paper_ids = filter["paper_id"]
-                if isinstance(paper_ids, str):
-                    paper_ids = [paper_ids]
+            if paper_ids:
                 rows = await conn.fetch(
                     """
                     SELECT

@@ -84,15 +84,10 @@ class QueryService:
         logger.debug(f"Step 2: Searching for top-{top_k} chunks")
         search_start = time.perf_counter()
 
-        # Build filter if paper_ids specified
-        search_filter = None
-        if request.paper_ids:
-            search_filter = {"paper_id": {"$in": request.paper_ids}}
-
         search_results = await self._vector_store.search(
             query_embedding=query_embedding,
             top_k=top_k,
-            filter=search_filter,
+            paper_ids=request.paper_ids or None,
         )
         retrieval_time = (time.perf_counter() - search_start) * 1000
 
