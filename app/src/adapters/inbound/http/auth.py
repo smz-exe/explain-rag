@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 import jwt
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from src.adapters.inbound.http.rate_limit import create_rate_limit_dependency
@@ -12,10 +12,6 @@ from src.domain.ports.user_storage import UserStoragePort
 
 # Throttles online password guessing against the single admin account
 login_rate_limit_dependency = create_rate_limit_dependency("login", "rate_limit_login")
-
-# Module-level references for require_admin dependency
-_settings: Settings | None = None
-_user_storage: UserStoragePort | None = None
 
 
 class LoginRequest(BaseModel):
@@ -65,12 +61,20 @@ def _set_auth_cookie(response: Response, settings: Settings, *, value: str, max_
         )
 
 
-async def require_admin(access_token: str | None = Cookie(default=None)) -> UserResponse:
+async def require_admin(
+    request: Request, access_token: str | None = Cookie(default=None)
+) -> UserResponse:
     """Dependency to require admin authentication.
 
     Use with FastAPI's Depends() to protect admin endpoints.
 
+    Configuration is read from the application handling the request rather than
+    from a module global: with a global, whichever application was constructed
+    last supplied the JWT secret for every application in the process, so
+    building a second app silently invalidated the first app's sessions.
+
     Args:
+        request: The incoming request, used to reach this app's settings.
         access_token: JWT token from httpOnly cookie.
 
     Returns:
@@ -79,7 +83,8 @@ async def require_admin(access_token: str | None = Cookie(default=None)) -> User
     Raises:
         HTTPException: 401 if not authenticated, 403 if not admin.
     """
-    if _settings is None:
+    settings = getattr(request.app.state, "settings", None)
+    if settings is None:
         raise HTTPException(status_code=500, detail="Auth not configured")
 
     if not access_token:
@@ -88,8 +93,8 @@ async def require_admin(access_token: str | None = Cookie(default=None)) -> User
     try:
         payload = jwt.decode(
             access_token,
-            _settings.jwt_secret_key.get_secret_value(),
-            algorithms=[_settings.jwt_algorithm],
+            settings.jwt_secret_key.get_secret_value(),
+            algorithms=[settings.jwt_algorithm],
         )
         username = payload.get("sub")
         is_admin = payload.get("is_admin", False)
@@ -118,10 +123,6 @@ def create_router(user_storage: UserStoragePort, settings: Settings) -> APIRoute
     Returns:
         Configured APIRouter.
     """
-    global _settings, _user_storage
-    _settings = settings
-    _user_storage = user_storage
-
     router = APIRouter(prefix="/auth", tags=["auth"])
 
     @router.post(
