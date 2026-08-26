@@ -4,6 +4,7 @@ import pytest
 
 from src.application.coordinates_service import CoordinatesService
 from src.domain.entities.coordinates import Cluster, PaperCoordinates
+from src.domain.entities.paper import StoredPaper
 from tests.conftest import (
     MockClusteringPort,
     MockCoordinatesStoragePort,
@@ -23,12 +24,12 @@ class TestCoordinatesService:
         # Override list_papers to return proper metadata
         async def mock_list_papers():
             return [
-                {
-                    "paper_id": "paper-001",
-                    "arxiv_id": "1706.03762",
-                    "title": "Attention Is All You Need",
-                    "chunk_count": 3,
-                },
+                StoredPaper(
+                    paper_id="paper-001",
+                    arxiv_id="1706.03762",
+                    title="Attention Is All You Need",
+                    chunk_count=3,
+                ),
             ]
 
         store.list_papers = mock_list_papers
@@ -237,24 +238,24 @@ class TestMultiplePapers:
         # Override list_papers
         async def mock_list_papers():
             return [
-                {
-                    "paper_id": "paper-0",
-                    "arxiv_id": "2401.00001",
-                    "title": "Machine Learning Basics",
-                    "chunk_count": 2,
-                },
-                {
-                    "paper_id": "paper-1",
-                    "arxiv_id": "2401.00002",
-                    "title": "Deep Learning Advances",
-                    "chunk_count": 2,
-                },
-                {
-                    "paper_id": "paper-2",
-                    "arxiv_id": "2401.00003",
-                    "title": "Neural Network Training",
-                    "chunk_count": 2,
-                },
+                StoredPaper(
+                    paper_id="paper-0",
+                    arxiv_id="2401.00001",
+                    title="Machine Learning Basics",
+                    chunk_count=2,
+                ),
+                StoredPaper(
+                    paper_id="paper-1",
+                    arxiv_id="2401.00002",
+                    title="Deep Learning Advances",
+                    chunk_count=2,
+                ),
+                StoredPaper(
+                    paper_id="paper-2",
+                    arxiv_id="2401.00003",
+                    title="Neural Network Training",
+                    chunk_count=2,
+                ),
             ]
 
         store.list_papers = mock_list_papers
@@ -319,12 +320,12 @@ class TestCoordinatesServiceWithStorage:
 
         async def mock_list_papers():
             return [
-                {
-                    "paper_id": "paper-001",
-                    "arxiv_id": "1706.03762",
-                    "title": "Attention Is All You Need",
-                    "chunk_count": 3,
-                },
+                StoredPaper(
+                    paper_id="paper-001",
+                    arxiv_id="1706.03762",
+                    title="Attention Is All You Need",
+                    chunk_count=3,
+                ),
             ]
 
         store.list_papers = mock_list_papers

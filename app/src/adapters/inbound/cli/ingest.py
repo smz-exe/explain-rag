@@ -107,7 +107,7 @@ async def run(args: argparse.Namespace) -> int:
             return 1
 
         existing = await vector_store.list_papers()
-        plan = plan_ingestion(requested, [p["arxiv_id"] for p in existing])
+        plan = plan_ingestion(requested, [p.arxiv_id for p in existing])
 
         for arxiv_id in plan.skipped:
             print(f"skip (already ingested): {arxiv_id}")

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from src.domain.entities.chunk import Chunk
-from src.domain.entities.paper import Paper
+from src.domain.entities.paper import Paper, StoredPaper, StoreStats
 
 
 class VectorStorePort(ABC):
@@ -46,20 +46,20 @@ class VectorStorePort(ABC):
         ...
 
     @abstractmethod
-    async def get_stats(self) -> dict:
+    async def get_stats(self) -> StoreStats:
         """Get statistics about the vector store.
 
         Returns:
-            Dictionary with stats like chunk_count, paper_count, etc.
+            Aggregate counts for the store's contents.
         """
         ...
 
     @abstractmethod
-    async def list_papers(self) -> list[dict]:
-        """List all papers that have chunks in the store.
+    async def list_papers(self) -> list[StoredPaper]:
+        """List all papers held in the store.
 
         Returns:
-            List of paper metadata dictionaries.
+            Stored papers with their chunk counts.
         """
         ...
 

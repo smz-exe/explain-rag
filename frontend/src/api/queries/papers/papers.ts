@@ -315,8 +315,8 @@ export const getSearchPapersPapersSearchGetUrl = (params: SearchPapersPapersSear
  *     List of matching papers with metadata.
  *
  * Raises:
+ *     502: If the arXiv search fails.
  *     503: If paper source is not configured.
- *     500: If arXiv search fails.
  * @summary Search Papers
  */
 export const searchPapersPapersSearchGet = async (params: SearchPapersPapersSearchGetParams, options?: Parameters<typeof customFetch>[1]): Promise<searchPapersPapersSearchGetResponse> => {

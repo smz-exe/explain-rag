@@ -73,10 +73,10 @@ def create_router(
         return PapersResponse(
             papers=[
                 PaperInfo(
-                    paper_id=p["paper_id"],
-                    arxiv_id=p.get("arxiv_id", ""),
-                    title=p.get("title", ""),
-                    chunk_count=p.get("chunk_count", 0),
+                    paper_id=p.paper_id,
+                    arxiv_id=p.arxiv_id,
+                    title=p.title,
+                    chunk_count=p.chunk_count,
                 )
                 for p in papers
             ],

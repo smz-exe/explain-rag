@@ -6,12 +6,17 @@ from collections import Counter, defaultdict
 from datetime import UTC, datetime
 
 from src.domain.entities.coordinates import Cluster, PaperCoordinates
+from src.domain.entities.paper import StoredPaper
 from src.domain.ports.clustering import ClusteringPort
 from src.domain.ports.coordinates_storage import CoordinatesStoragePort
 from src.domain.ports.dimensionality_reduction import DimensionalityReductionPort
 from src.domain.ports.vector_store import VectorStorePort
 
 logger = logging.getLogger(__name__)
+
+# Papers can have embeddings without a matching metadata row, so lookups fall
+# back to this rather than repeating a defaulted .get() at every call site.
+_UNKNOWN_PAPER = StoredPaper(paper_id="", title="Unknown")
 
 
 class CoordinatesService:
@@ -132,7 +137,7 @@ class CoordinatesService:
 
         # Get paper metadata for titles
         papers_list = await self._vector_store.list_papers()
-        paper_metadata = {p["paper_id"]: p for p in papers_list}
+        paper_metadata = {p.paper_id: p for p in papers_list}
 
         paper_ids = [pid for pid, _ in paper_embeddings]
         embeddings = [emb for _, emb in paper_embeddings]
@@ -152,11 +157,11 @@ class CoordinatesService:
         self._paper_coordinates = [
             PaperCoordinates(
                 paper_id=paper_id,
-                arxiv_id=paper_metadata.get(paper_id, {}).get("arxiv_id", ""),
-                title=paper_metadata.get(paper_id, {}).get("title", "Unknown"),
+                arxiv_id=paper_metadata.get(paper_id, _UNKNOWN_PAPER).arxiv_id,
+                title=paper_metadata.get(paper_id, _UNKNOWN_PAPER).title,
                 coords=coords_3d[i],
                 cluster_id=cluster_labels[i] if cluster_labels[i] >= 0 else None,
-                chunk_count=paper_metadata.get(paper_id, {}).get("chunk_count", 0),
+                chunk_count=paper_metadata.get(paper_id, _UNKNOWN_PAPER).chunk_count,
             )
             for i, paper_id in enumerate(paper_ids)
         ]
@@ -191,7 +196,7 @@ class CoordinatesService:
         self,
         cluster_labels: list[int],
         paper_ids: list[str],
-        paper_metadata: dict[str, dict],
+        paper_metadata: dict[str, StoredPaper],
     ) -> list[Cluster]:
         """Build cluster entities with auto-generated labels.
 
@@ -214,7 +219,7 @@ class CoordinatesService:
             Cluster(
                 id=cluster_id,
                 label=self._generate_cluster_label(
-                    [paper_metadata.get(pid, {}).get("title", "") for pid in pids]
+                    [paper_metadata.get(pid, _UNKNOWN_PAPER).title for pid in pids]
                 ),
                 paper_ids=pids,
             )

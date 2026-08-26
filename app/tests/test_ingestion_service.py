@@ -6,7 +6,7 @@ import pytest
 
 from src.application.ingestion_service import IngestionService
 from src.domain.entities.chunk import Chunk
-from src.domain.entities.paper import Paper
+from src.domain.entities.paper import Paper, StoredPaper, StoreStats
 from src.domain.ports.embedding import EmbeddingPort
 from src.domain.ports.paper_source import (
     PaperNotFoundError,
@@ -81,10 +81,10 @@ class RecordingVectorStore(VectorStorePort):
     ) -> list[tuple[Chunk, float]]:
         return []
 
-    async def get_stats(self) -> dict:
-        return {"papers_count": 0, "chunks_count": len(self.added_chunks)}
+    async def get_stats(self) -> StoreStats:
+        return StoreStats(chunk_count=len(self.added_chunks), paper_count=len(self.added_papers))
 
-    async def list_papers(self) -> list[dict]:
+    async def list_papers(self) -> list[StoredPaper]:
         return []
 
     async def delete_paper(self, paper_id: str) -> int | None:

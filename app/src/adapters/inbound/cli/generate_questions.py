@@ -79,12 +79,12 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     try:
-        papers = sorted(await vector_store.list_papers(), key=lambda p: p["arxiv_id"])
+        papers = sorted(await vector_store.list_papers(), key=lambda p: p.arxiv_id)
         logger.info(f"Generating one question for each of {len(papers)} papers")
 
         questions = []
         for paper in papers:
-            prompt = QUESTION_PROMPT.format(title=paper["title"], abstract=paper["abstract"])
+            prompt = QUESTION_PROMPT.format(title=paper.title, abstract=paper.abstract)
             response = await client.messages.create(
                 model=settings.claude_model,
                 max_tokens=512,
@@ -94,14 +94,14 @@ async def run(args: argparse.Namespace) -> int:
             question = str(payload["question"]).strip()
             questions.append(
                 {
-                    "id": f"q-{paper['arxiv_id']}",
-                    "paper_id": str(paper["paper_id"]),
-                    "arxiv_id": paper["arxiv_id"],
-                    "title": paper["title"],
+                    "id": f"q-{paper.arxiv_id}",
+                    "paper_id": paper.paper_id,
+                    "arxiv_id": paper.arxiv_id,
+                    "title": paper.title,
                     "question": question,
                 }
             )
-            logger.info(f"  {paper['arxiv_id']}: {question}")
+            logger.info(f"  {paper.arxiv_id}: {question}")
 
         document = {
             "generated_at": datetime.now(UTC).isoformat(),

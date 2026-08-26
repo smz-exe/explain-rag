@@ -11,7 +11,7 @@ import numpy as np
 from pgvector.asyncpg import register_vector
 
 from src.domain.entities.chunk import Chunk
-from src.domain.entities.paper import Paper
+from src.domain.entities.paper import Paper, StoredPaper, StoreStats
 from src.domain.ports.vector_store import VectorStorePort
 
 logger = logging.getLogger(__name__)
@@ -275,7 +275,7 @@ class PostgresVectorStore(VectorStorePort):
 
         return chunks_with_scores
 
-    async def get_stats(self) -> dict:
+    async def get_stats(self) -> StoreStats:
         """Get statistics about the vector store."""
         pool = await self._get_pool()
 
@@ -283,13 +283,10 @@ class PostgresVectorStore(VectorStorePort):
             chunk_count = await conn.fetchval("SELECT COUNT(*) FROM chunks")
             paper_count = await conn.fetchval("SELECT COUNT(*) FROM papers")
 
-        return {
-            "chunk_count": chunk_count or 0,
-            "paper_count": paper_count or 0,
-        }
+        return StoreStats(chunk_count=chunk_count or 0, paper_count=paper_count or 0)
 
-    async def list_papers(self) -> list[dict]:
-        """List all papers that have chunks in the store."""
+    async def list_papers(self) -> list[StoredPaper]:
+        """List all papers held in the store."""
         pool = await self._get_pool()
 
         async with pool.acquire() as conn:
@@ -313,17 +310,17 @@ class PostgresVectorStore(VectorStorePort):
             )
 
         return [
-            {
-                "paper_id": str(row["paper_id"]),
-                "arxiv_id": row["arxiv_id"],
-                "title": row["title"],
-                "authors": row["authors"] or [],
-                "abstract": row["abstract"] or "",
-                "url": row["url"],
-                "pdf_url": row["pdf_url"],
-                "ingested_at": row["ingested_at"].isoformat() if row["ingested_at"] else None,
-                "chunk_count": row["chunk_count"],
-            }
+            StoredPaper(
+                paper_id=str(row["paper_id"]),
+                arxiv_id=row["arxiv_id"] or "",
+                title=row["title"] or "",
+                authors=list(row["authors"] or []),
+                abstract=row["abstract"] or "",
+                url=row["url"] or "",
+                pdf_url=row["pdf_url"] or "",
+                ingested_at=row["ingested_at"].isoformat() if row["ingested_at"] else None,
+                chunk_count=row["chunk_count"] or 0,
+            )
             for row in rows
         ]
 

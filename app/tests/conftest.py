@@ -36,7 +36,7 @@ from httpx import ASGITransport, AsyncClient
 from src.domain.entities.chunk import Chunk
 from src.domain.entities.coordinates import Cluster, PaperCoordinates
 from src.domain.entities.explanation import ClaimVerification, FaithfulnessResult
-from src.domain.entities.paper import Paper
+from src.domain.entities.paper import Paper, StoredPaper, StoreStats
 from src.domain.entities.query import Citation, GenerationResult, QueryResponse
 from src.domain.ports.clustering import ClusteringPort
 from src.domain.ports.coordinates_storage import CoordinatesStoragePort
@@ -248,13 +248,27 @@ class MockVectorStorePort(VectorStorePort):
             results.append((chunk, score))
         return results
 
-    async def get_stats(self) -> dict:
+    async def get_stats(self) -> StoreStats:
         """Return mock stats."""
-        return {"chunk_count": len(self.chunks), "paper_count": 1}
+        paper_ids = {c.paper_id for c in self.chunks}
+        return StoreStats(chunk_count=len(self.chunks), paper_count=len(paper_ids) or 1)
 
-    async def list_papers(self) -> list[dict]:
-        """Return mock paper list."""
-        return [{"paper_id": "paper-001", "title": "Test Paper", "chunk_count": 3}]
+    async def list_papers(self) -> list[StoredPaper]:
+        """Return one StoredPaper per distinct paper in the store."""
+        by_paper: dict[str, list[Chunk]] = {}
+        for chunk in self.chunks:
+            by_paper.setdefault(chunk.paper_id, []).append(chunk)
+        if not by_paper:
+            return [StoredPaper(paper_id="paper-001", title="Test Paper", chunk_count=3)]
+        return [
+            StoredPaper(
+                paper_id=paper_id,
+                arxiv_id=chunks[0].metadata.get("arxiv_id", ""),
+                title=chunks[0].metadata.get("paper_title", ""),
+                chunk_count=len(chunks),
+            )
+            for paper_id, chunks in by_paper.items()
+        ]
 
     async def delete_paper(self, paper_id: str) -> int | None:
         """Delete chunks for a paper, or None when it is unknown."""

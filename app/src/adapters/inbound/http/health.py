@@ -35,8 +35,8 @@ def create_router(vector_store: VectorStorePort) -> APIRouter:
 
         return HealthResponse(
             status="healthy",
-            papers_count=stats.get("paper_count", 0),
-            chunks_count=stats.get("chunk_count", 0),
+            papers_count=stats.paper_count,
+            chunks_count=stats.chunk_count,
         )
 
     @router.get("/live")

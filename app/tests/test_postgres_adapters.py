@@ -85,10 +85,9 @@ class TestPostgresVectorStore:
     async def test_get_stats_empty(self, vector_store: PostgresVectorStore):
         """Test get_stats on empty database."""
         stats = await vector_store.get_stats()
-        assert "chunk_count" in stats
-        assert "paper_count" in stats
-        assert isinstance(stats["chunk_count"], int)
-        assert isinstance(stats["paper_count"], int)
+
+        assert isinstance(stats.chunk_count, int)
+        assert isinstance(stats.paper_count, int)
 
     async def test_list_papers_empty(self, vector_store: PostgresVectorStore):
         """Test list_papers on empty database."""
@@ -136,15 +135,13 @@ class TestPostgresVectorStore:
         await vector_store.add_chunks(paper, chunks, sample_embeddings)
 
         try:
-            stored = [
-                p for p in await vector_store.list_papers() if p["arxiv_id"] == paper.arxiv_id
-            ]
+            stored = [p for p in await vector_store.list_papers() if p.arxiv_id == paper.arxiv_id]
             assert len(stored) == 1
-            assert stored[0]["title"] == paper.title
-            assert stored[0]["authors"] == paper.authors
-            assert stored[0]["abstract"] == paper.abstract
-            assert stored[0]["url"] == paper.url
-            assert stored[0]["pdf_url"] == paper.pdf_url
+            assert stored[0].title == paper.title
+            assert stored[0].authors == paper.authors
+            assert stored[0].abstract == paper.abstract
+            assert stored[0].url == paper.url
+            assert stored[0].pdf_url == paper.pdf_url
         finally:
             await vector_store.delete_paper(paper.id)
 
@@ -183,10 +180,10 @@ class TestPostgresVectorStore:
         await vector_store.add_chunks(refetched_paper, refetched, sample_embeddings)
 
         try:
-            papers = [p for p in await vector_store.list_papers() if p["arxiv_id"] == arxiv_id]
+            papers = [p for p in await vector_store.list_papers() if p.arxiv_id == arxiv_id]
             assert len(papers) == 1, "re-ingestion must not create a duplicate paper row"
 
-            canonical_id = papers[0]["paper_id"]
+            canonical_id = papers[0].paper_id
             results = await vector_store.search([0.15] * 384, top_k=10, paper_ids=[canonical_id])
             assert results, "chunks must be attached to the canonical paper id"
             assert all("Updated chunk" in chunk.content for chunk, _ in results)
@@ -219,8 +216,8 @@ class TestPostgresVectorStore:
         await vector_store.add_chunks(shrunk_paper, shrunk, sample_embeddings[:1])
 
         try:
-            papers = [p for p in await vector_store.list_papers() if p["arxiv_id"] == arxiv_id]
-            assert papers[0]["chunk_count"] == 1
+            papers = [p for p in await vector_store.list_papers() if p.arxiv_id == arxiv_id]
+            assert papers[0].chunk_count == 1
         finally:
             # The paper keeps its original id across re-ingestion, so clean up by that.
             await vector_store.delete_paper(sample_chunks[0].paper_id)
@@ -243,7 +240,7 @@ class TestPostgresVectorStore:
         with pytest.raises(asyncpg.PostgresError):
             await vector_store.add_chunks(sample_paper, sample_chunks, bad_embeddings)
 
-        papers = [p for p in await vector_store.list_papers() if p["arxiv_id"] == arxiv_id]
+        papers = [p for p in await vector_store.list_papers() if p.arxiv_id == arxiv_id]
         assert papers == [], "paper row must not survive a failed chunk write"
 
     async def test_malformed_paper_id_is_not_found_rather_than_an_error(
@@ -290,7 +287,7 @@ class TestPostgresVectorStore:
 
         # Verify paper exists
         papers = await vector_store.list_papers()
-        paper_ids = [p["paper_id"] for p in papers]
+        paper_ids = [p.paper_id for p in papers]
         assert paper_id in paper_ids
 
         # Delete paper
@@ -299,7 +296,7 @@ class TestPostgresVectorStore:
 
         # Verify paper is gone
         papers = await vector_store.list_papers()
-        paper_ids = [p["paper_id"] for p in papers]
+        paper_ids = [p.paper_id for p in papers]
         assert paper_id not in paper_ids
 
     async def test_search_with_paper_filter(

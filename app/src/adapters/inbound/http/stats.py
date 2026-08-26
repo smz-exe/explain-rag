@@ -37,8 +37,8 @@ def create_router(
         queries_count = await query_storage.count()
 
         return SystemStats(
-            papers_count=vector_stats.get("paper_count", 0),
-            chunks_count=vector_stats.get("chunk_count", 0),
+            papers_count=vector_stats.paper_count,
+            chunks_count=vector_stats.chunk_count,
             queries_count=queries_count,
         )
 
