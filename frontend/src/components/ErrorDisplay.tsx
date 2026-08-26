@@ -3,6 +3,7 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { APIError } from "@/api/custom-fetch";
 
 interface ErrorDisplayProps {
   error: Error;
@@ -10,11 +11,10 @@ interface ErrorDisplayProps {
 }
 
 export function ErrorDisplay({ error, onRetry }: ErrorDisplayProps) {
-  const isNetworkError =
-    error.message.includes("fetch") ||
-    error.message.includes("network") ||
-    error.message.includes("connect") ||
-    error.message === "Failed to fetch";
+  // An APIError means the server answered, so it is never a connection
+  // problem. Matching on message text misread real server errors as network
+  // failures whenever the backend's detail happened to mention "connect".
+  const isNetworkError = !(error instanceof APIError);
 
   return (
     <Alert variant="destructive">

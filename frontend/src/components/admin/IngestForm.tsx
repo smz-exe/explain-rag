@@ -29,6 +29,8 @@ export function IngestForm() {
   const [selectedPapers, setSelectedPapers] = useState<string[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+  // "No results" is only meaningful once a search has actually run.
+  const [hasSearched, setHasSearched] = useState(false);
 
   const ingestMutation = useIngestPapersIngestPost();
   const queryClient = useQueryClient();
@@ -63,6 +65,7 @@ export function IngestForm() {
     if (!searchQuery.trim() || searchQuery.length < 2) return;
 
     setIsSearching(true);
+    setHasSearched(true);
     setSearchError("");
     setSearchResults([]);
     setSelectedPapers([]);
@@ -292,7 +295,7 @@ export function IngestForm() {
                 </div>
               )}
 
-              {!isSearching && searchResults.length === 0 && searchQuery && (
+              {!isSearching && hasSearched && searchResults.length === 0 && (
                 <p className="text-muted-foreground text-center text-sm">
                   No results. Try a different search term.
                 </p>
