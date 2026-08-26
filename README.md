@@ -1,6 +1,7 @@
 # ExplainRAG
 
 [![CI](https://github.com/smz-exe/explain-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/smz-exe/explain-rag/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Explainable Retrieval-Augmented Generation over arXiv papers. Every answer carries inline citations, a claim-level faithfulness report, and a per-stage timing trace; the corpus itself is browsable as a 3D map.
 
