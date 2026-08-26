@@ -6,8 +6,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
 
 from src.adapters.inbound.http import (
     auth,
@@ -23,6 +21,7 @@ from src.adapters.inbound.http.middleware import (
     BodySizeLimitMiddleware,
     SecurityHeadersMiddleware,
 )
+from src.adapters.inbound.http.rate_limit import create_rate_limiter
 from src.adapters.outbound.anthropic_evaluator import AnthropicEvaluator
 from src.adapters.outbound.anthropic_faithfulness import AnthropicFaithfulness
 from src.adapters.outbound.anthropic_rag import AnthropicRAG
@@ -262,10 +261,11 @@ def create_app(
     )
 
     # Configure rate limiting exception handler
-    # Rate limiting is applied per-endpoint in query.py using the limits library
+    # Rate limiting is applied per-endpoint via create_rate_limit_dependency
     app.state.settings = settings  # Store settings for rate limit configuration access
-    # slowapi's handler is typed narrower than starlette's protocol
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+    # Limiter state lives on the app, not in a module global, so separate
+    # application instances (notably in tests) do not share counters
+    app.state.rate_limiter = create_rate_limiter()
 
     # HTTP hardening (added before CORS so CORS stays outermost and error
     # responses from these layers still receive CORS headers)

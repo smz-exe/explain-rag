@@ -72,7 +72,13 @@ class Settings(BaseSettings):
 
     # Rate Limiting Configuration
     rate_limit_query: str = "10/minute"  # Rate limit for /query endpoint
+    rate_limit_login: str = "5/minute"  # Rate limit for /auth/login (brute force)
     rate_limit_enabled: bool = True  # Enable/disable rate limiting
+    # Header carrying the real client IP when running behind a trusted proxy.
+    # Left unset by default: reading a client-supplied header would let anyone
+    # forge their rate-limit identity. Set it only in a deployment where the
+    # proxy overwrites the header (on Fly: CLIENT_IP_HEADER=Fly-Client-IP).
+    client_ip_header: str | None = None
 
     # Auth Configuration
     jwt_secret_key: SecretStr = SecretStr("")

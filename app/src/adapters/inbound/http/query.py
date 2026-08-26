@@ -1,53 +1,20 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import Response
-from limits import parse
-from limits.aio.storage import MemoryStorage
-from limits.aio.strategies import MovingWindowRateLimiter
 from pydantic import BaseModel, Field
-from slowapi.util import get_remote_address
 
 from src.adapters.inbound.http.auth import require_admin
 from src.adapters.inbound.http.query_access import (
     create_query_access_dependency,
     issue_query_token,
 )
+from src.adapters.inbound.http.rate_limit import create_rate_limit_dependency
 from src.application.query_service import QueryService
 from src.config import Settings
 from src.domain.entities.explanation import FaithfulnessResult
 from src.domain.entities.query import QueryRequest, QueryResponse
 from src.domain.ports.query_storage import QueryNotFoundError
 
-# Module-level rate limiter storage (shared across requests)
-_rate_limit_storage = MemoryStorage()
-_rate_limiter = MovingWindowRateLimiter(_rate_limit_storage)
-
-
-async def rate_limit_dependency(request: Request) -> None:
-    """Dependency to enforce rate limiting on the query endpoint.
-
-    This dependency checks if rate limiting is enabled and applies the
-    configured rate limit (default: 10 requests/minute per IP).
-
-    Raises:
-        HTTPException 429: If the rate limit is exceeded.
-    """
-    settings = getattr(request.app.state, "settings", None)
-
-    if not settings or not settings.rate_limit_enabled:
-        return
-
-    # Get client identifier for rate limiting
-    key = get_remote_address(request)
-    limit_string = settings.rate_limit_query
-
-    # Parse and check rate limit
-    rate_limit = parse(limit_string)
-    if not await _rate_limiter.hit(rate_limit, "query", key):
-        from slowapi.errors import RateLimitExceeded
-
-        # Raise the slowapi exception for consistent error handling
-        # slowapi types this as Limit, but the handler tolerates None
-        raise RateLimitExceeded(None)  # type: ignore[arg-type]
+rate_limit_dependency = create_rate_limit_dependency("query", "rate_limit_query")
 
 
 class FaithfulnessStatusResponse(BaseModel):
@@ -102,8 +69,8 @@ def create_router(query_service: QueryService, settings: Settings) -> APIRouter:
         Configured APIRouter.
 
     Note:
-        Rate limiting is applied via slowapi middleware configured in main.py.
-        The /query POST endpoint is rate limited (default: 10/minute per IP).
+        Rate limiting is applied per-endpoint via create_rate_limit_dependency.
+        The /query POST endpoint is rate limited (default: 10/minute per client).
     """
     router = APIRouter(prefix="/query", tags=["query"])
     require_query_access = create_query_access_dependency(settings)

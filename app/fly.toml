@@ -13,6 +13,11 @@ dockerfile = 'Dockerfile'
 API_HOST = '0.0.0.0'
 API_PORT = '8000'
 ENVIRONMENT = 'production'
+# Requests reach the app through fly-proxy, so request.client.host is the
+# proxy for every caller. fly-proxy sets Fly-Client-IP itself, so it is safe
+# to key rate limits on it here; leaving this unset makes the per-IP limit
+# behave as a single shared bucket.
+CLIENT_IP_HEADER = 'Fly-Client-IP'
 # FastEmbed model names (ONNX-based, lightweight)
 EMBEDDING_MODEL = 'sentence-transformers/all-MiniLM-L6-v2'
 RERANKER_MODEL = 'Xenova/ms-marco-MiniLM-L-6-v2'

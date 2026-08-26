@@ -17,8 +17,9 @@ os.environ.setdefault("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2
 os.environ.setdefault("RERANKER_MODEL", "Xenova/ms-marco-MiniLM-L-6-v2")
 # Disable model preloading during tests (tests use mock adapters)
 os.environ.setdefault("PRELOAD_MODELS", "false")
-# The in-memory rate limiter is shared process-wide; without this the suite
-# becomes order-dependent once cumulative POST /query calls exceed the limit
+# Off by default so tests that make many calls are not throttled incidentally.
+# Limiter state is per-application, so tests that do exercise the limit turn it
+# back on with monkeypatch and get a fresh counter (see test_rate_limiting.py).
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 # Existing tests assert on synchronous verification; the deferred path has
 # dedicated tests that opt back in via monkeypatch

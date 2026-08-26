@@ -3,11 +3,15 @@
 from datetime import UTC, datetime, timedelta
 
 import jwt
-from fastapi import APIRouter, Cookie, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from pydantic import BaseModel
 
+from src.adapters.inbound.http.rate_limit import create_rate_limit_dependency
 from src.config import Settings
 from src.domain.ports.user_storage import UserStoragePort
+
+# Throttles online password guessing against the single admin account
+login_rate_limit_dependency = create_rate_limit_dependency("login", "rate_limit_login")
 
 # Module-level references for require_admin dependency
 _settings: Settings | None = None
@@ -120,7 +124,11 @@ def create_router(user_storage: UserStoragePort, settings: Settings) -> APIRoute
 
     router = APIRouter(prefix="/auth", tags=["auth"])
 
-    @router.post("/login", response_model=LoginResponse)
+    @router.post(
+        "/login",
+        response_model=LoginResponse,
+        dependencies=[Depends(login_rate_limit_dependency)],
+    )
     async def login(request: LoginRequest, response: Response) -> LoginResponse:
         """Authenticate user and set JWT cookie."""
         user = await user_storage.get_user_by_username(request.username)
