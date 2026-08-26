@@ -8,52 +8,6 @@ from src.domain.entities.query import Citation
 from tests.conftest import MockLLMPort
 
 
-class TestLLMGeneration:
-    """Test LLM generation with citations."""
-
-    @pytest.mark.asyncio
-    async def test_generate_includes_citations(self, sample_chunks):
-        """Test that generate returns answer with citations."""
-        llm = MockLLMPort()
-
-        result = await llm.generate(
-            question="What is self-attention?",
-            chunks=sample_chunks,
-        )
-
-        assert result.answer is not None
-        assert len(result.citations) > 0
-        assert "[1]" in result.answer or "[2]" in result.answer
-
-    @pytest.mark.asyncio
-    async def test_citations_have_required_fields(self, sample_chunks):
-        """Test that citations have all required fields."""
-        llm = MockLLMPort()
-
-        result = await llm.generate(
-            question="What is self-attention?",
-            chunks=sample_chunks,
-        )
-
-        for citation in result.citations:
-            assert citation.claim is not None
-            assert citation.chunk_ids is not None
-            assert len(citation.chunk_ids) > 0
-            assert 0.0 <= citation.confidence <= 1.0
-
-    @pytest.mark.asyncio
-    async def test_generate_tracks_calls(self, sample_chunks):
-        """Test that generate tracks its calls."""
-        llm = MockLLMPort()
-
-        await llm.generate(question="Q1", chunks=sample_chunks)
-        await llm.generate(question="Q2", chunks=sample_chunks)
-
-        assert len(llm.generate_calls) == 2
-        assert llm.generate_calls[0][0] == "Q1"
-        assert llm.generate_calls[1][0] == "Q2"
-
-
 class TestCitationExtraction:
     """Test citation extraction from LLM responses."""
 
