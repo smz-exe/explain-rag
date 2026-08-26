@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   QueryInput,
@@ -17,6 +17,11 @@ import {
 import type { QueryInputHandle } from "@/components/QueryInput";
 import type { QueryCreatedResponse } from "@/api/model";
 import { useGetFaithfulnessQueryQueryIdFaithfulnessGet } from "@/api/queries/query/query";
+
+/** Gap between deferred-verification polls. */
+const POLL_INTERVAL_MS = 2000;
+/** How long to wait for a deferred verification before declaring it failed. */
+const POLL_TIMEOUT_MS = 120_000;
 
 interface QueryPanelProps {
   /** Current query response, including the token authorizing reads of it */
@@ -65,15 +70,33 @@ export const QueryPanel = forwardRef<QueryInputHandle, QueryPanelProps>(
     // Reading the report needs the capability token issued with the query.
     const shareToken = response?.share_token;
     const verificationPending = response?.faithfulness_status === "pending";
+    const queryId = response?.query_id;
+
+    // Verification runs as a best-effort background task, so a query can stay
+    // "pending" forever if the server process died before finishing it. Bound
+    // the wait instead of spinning indefinitely.
+    const [pollTimedOut, setPollTimedOut] = useState(false);
+    useEffect(() => {
+      setPollTimedOut(false);
+      if (!queryId || !verificationPending) return;
+      const timer = setTimeout(() => setPollTimedOut(true), POLL_TIMEOUT_MS);
+      return () => clearTimeout(timer);
+    }, [queryId, verificationPending]);
+
     const faithfulnessPoll = useGetFaithfulnessQueryQueryIdFaithfulnessGet(
-      response?.query_id ?? "",
+      queryId ?? "",
       {
         query: {
-          enabled: !!response && !!shareToken && verificationPending,
+          enabled:
+            !!queryId && !!shareToken && verificationPending && !pollTimedOut,
           refetchInterval: (query) => {
             const data = query.state.data;
-            const done = data?.status === 200 && data.data.status !== "pending";
-            return done ? false : 2000;
+            if (data?.status === 200 && data.data.status !== "pending") {
+              return false;
+            }
+            // A failing poll (expired token, query gone) must not retry forever.
+            if (query.state.status === "error") return false;
+            return POLL_INTERVAL_MS;
           },
         },
         request: shareToken
@@ -83,10 +106,16 @@ export const QueryPanel = forwardRef<QueryInputHandle, QueryPanelProps>(
     );
     const polled =
       faithfulnessPoll.data?.status === 200 ? faithfulnessPoll.data.data : null;
+    // Resolve to a definite outcome rather than an endless spinner.
+    const pollGaveUp =
+      verificationPending && (faithfulnessPoll.isError || pollTimedOut);
+
     const faithfulness = response?.faithfulness ?? polled?.faithfulness ?? null;
     const faithfulnessStatus = response?.faithfulness
       ? "completed"
-      : (polled?.status ?? response?.faithfulness_status);
+      : pollGaveUp
+        ? "failed"
+        : (polled?.status ?? response?.faithfulness_status);
 
     return (
       <div className={cn("flex flex-col gap-4 p-4", className)}>
