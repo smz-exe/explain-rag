@@ -149,9 +149,8 @@ class AnthropicEvaluator(EvaluationPort):
             [c for c in raw_claims if isinstance(c, dict)] if isinstance(raw_claims, list) else []
         )
         if not claims:
-            # Scoring this 1.0 made "the judge told us nothing" indistinguishable
-            # from "every claim was supported", which then entered the published
-            # benchmark means as a perfect result.
+            # Scoring this 1.0 made "the judge told us nothing" indistinguishable from
+            # "every claim was supported" in the published benchmark means.
             raise EvaluationError(f"Judge returned no usable claims: {verdict!r}")
         faithfulness = sum(1 for c in claims if c.get("supported_by_context") is True) / len(claims)
 

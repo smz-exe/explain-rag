@@ -86,9 +86,8 @@ def record_from_response(question: dict[str, Any], response: QueryResponse) -> d
             default=0,
         ),
         "n_citations": len(response.citations),
-        # None, not 0.0: "verification did not run" must stay distinguishable
-        # from "every claim was unsupported", or a benchmark run against a
-        # deferred backend silently reports a floor of zeros as real scores.
+        # None, not 0.0: "verification did not run" must stay distinguishable from
+        # "every claim was unsupported", or deferred runs report a floor of zeros.
         "n_claims": len(response.faithfulness.claims) if response.faithfulness else None,
         "faithfulness_score": response.faithfulness.score if response.faithfulness else None,
         "timings": {
@@ -151,8 +150,7 @@ def summarize(records: list[dict[str, Any]], top_k: int) -> dict[str, Any]:
             "total": stage_stats("total_ms"),
         },
         "signals": {
-            # Averaged over the runs that actually have a score; a run with
-            # unverified answers reports None rather than a diluted mean.
+            # Only scored runs, so unverified answers cannot dilute the mean.
             "faithfulness_mean": _mean_or_none(
                 [r["faithfulness_score"] for r in records if r["faithfulness_score"] is not None]
             ),

@@ -127,8 +127,6 @@ class PostgresVectorStore(VectorStorePort):
 
         pool = await self._get_pool()
 
-        # Sanitize every text field: PDF extraction can emit null bytes, which
-        # PostgreSQL text columns reject.
         paper_title = _sanitize_text(paper.title)
         arxiv_id = _sanitize_text(paper.arxiv_id)
         url = _sanitize_text(paper.url)
@@ -137,8 +135,6 @@ class PostgresVectorStore(VectorStorePort):
         abstract = _sanitize_text(paper.abstract)
 
         async with pool.acquire() as conn, conn.transaction():
-            # Reuse the existing row's id when this arxiv_id was already
-            # ingested; the RETURNING id is the canonical paper id for its chunks.
             paper_id = await conn.fetchval(
                 """
                 INSERT INTO papers (id, arxiv_id, title, authors, abstract, url, pdf_url)
@@ -160,11 +156,9 @@ class PostgresVectorStore(VectorStorePort):
                 pdf_url,
             )
 
-            # Replace the paper's chunks wholesale so a re-chunk into fewer
-            # pieces leaves no stale tail rows behind.
+            # Wholesale replacement: a re-chunk into fewer pieces must leave no stale tail rows.
             await conn.execute("DELETE FROM chunks WHERE paper_id = $1", paper_id)
 
-            # Insert chunks with embeddings (sanitize text fields to remove null bytes)
             await conn.executemany(
                 """
                 INSERT INTO chunks (id, paper_id, content, chunk_index, section, metadata, embedding)
@@ -331,10 +325,8 @@ class PostgresVectorStore(VectorStorePort):
 
         pool = await self._get_pool()
 
-        # One transaction: the count and the delete must describe the same
-        # state, and the DELETE is what proves the paper existed. Using the
-        # chunk count as an existence proxy deleted zero-chunk papers while
-        # telling the caller they were not found.
+        # The DELETE, not the count, is what proves the paper existed: using the
+        # chunk count as a proxy deleted zero-chunk papers while reporting them missing.
         async with pool.acquire() as conn, conn.transaction():
             count = await conn.fetchval(
                 "SELECT COUNT(*) FROM chunks WHERE paper_id = $1",

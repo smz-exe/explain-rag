@@ -10,9 +10,8 @@ from src.domain.ports.user_storage import User, UserStoragePort
 
 logger = logging.getLogger(__name__)
 
-# Compared against when a username is unknown, so login spends the same bcrypt
-# time on both branches. Derived from a fresh random value at import: it is not
-# a credential and nothing can match it.
+# Compared against when a username is unknown, so login spends the same bcrypt time
+# on both branches. Random at import: not a credential, and nothing can match it.
 _DUMMY_PASSWORD_HASH = bcrypt.hashpw(secrets.token_bytes(32), bcrypt.gensalt(12)).decode()
 
 

@@ -66,8 +66,7 @@ class BodySizeLimitMiddleware:
             await self._reject(scope, receive, send)
             return
 
-        # Buffer up to the limit: anything larger is refused before the handler
-        # sees it, and the limit is exactly how much memory we accept holding.
+        # The limit is exactly how much memory we accept buffering per request.
         body = bytearray()
         more_body = True
         while more_body:

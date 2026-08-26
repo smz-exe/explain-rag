@@ -251,9 +251,7 @@ class QueryService:
                     "trace": response.trace.model_copy(
                         update={
                             "faithfulness_time_ms": faith_time,
-                            # total_time_ms was measured before this stage ran.
-                            # Leaving it alone lets the persisted trace report a
-                            # faithfulness stage longer than the whole request.
+                            # Measured before this stage ran, so it must absorb it.
                             "total_time_ms": response.trace.total_time_ms + faith_time,
                         }
                     ),
@@ -262,8 +260,7 @@ class QueryService:
 
         if self._query_storage:
             try:
-                # update(), not store(): an upsert would resurrect a query the
-                # admin deleted while verification was still running.
+                # An upsert would resurrect a query deleted mid-verification.
                 if not await self._query_storage.update(updated):
                     logger.info(
                         f"Query {response.query_id} no longer exists; "

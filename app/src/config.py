@@ -48,8 +48,7 @@ class Settings(BaseSettings):
     database_url: str = ""
     database_pool_min: int = 2
     database_pool_max: int = 10
-    # Bound every database interaction: without these a stalled connection or an
-    # exhausted pool hangs the request until the client gives up.
+    # Without these a stalled connection or exhausted pool hangs the request forever.
     database_command_timeout: float = 30.0  # Max seconds for a single statement
     database_acquire_timeout: float = 10.0  # Max seconds waiting for a connection
 
@@ -57,8 +56,7 @@ class Settings(BaseSettings):
     preload_models: bool = True  # Preload models at startup to avoid cold start
     hf_offline_mode: bool = False  # Use only locally cached HuggingFace models
     hf_token: SecretStr = SecretStr("")  # HuggingFace token for higher rate limits
-    # Where FastEmbed caches downloaded models. Defaults to the library's own
-    # location; the Dockerfile points HF_HOME at the mounted volume.
+    # None defers to the library default; the Dockerfile points HF_HOME at the volume.
     model_cache_dir: str | None = None
 
     # Visualization Configuration (UMAP)
@@ -126,10 +124,8 @@ class Settings(BaseSettings):
                 "For local development, run 'supabase start' and use the local URL."
             )
 
-        # Validate chunking settings. The chunker may pull a chunk boundary
-        # back to as early as start + chunk_size // 2 to land on a sentence
-        # end; an overlap at least that large leaves the next start at or
-        # behind the current one, so chunking cannot advance normally.
+        # The chunker may pull a boundary back to start + chunk_size // 2 to land on a
+        # sentence end; an overlap that large leaves the next start at or behind this one.
         if self.chunk_overlap >= self.chunk_size // 2:
             raise ValueError(
                 f"CHUNK_OVERLAP ({self.chunk_overlap}) must be less than half of "

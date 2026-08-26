@@ -219,10 +219,8 @@ class ArxivPaperSource(PaperSourcePort):
                 chunks.append(chunk)
                 chunk_index += 1
 
-            # Move start position, accounting for overlap. A sentence-boundary
-            # pullback can put end - chunk_overlap at or before the current
-            # start; without this floor the loop would break on the `start < 0`
-            # guard and silently drop the rest of the paper.
+            # A sentence-boundary pullback can put end - chunk_overlap at or before
+            # start; without this floor the loop stalls and drops the rest of the paper.
             next_start = max(end - chunk_overlap, start + 1)
             if next_start >= len(text):
                 break

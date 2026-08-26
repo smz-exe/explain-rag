@@ -4,10 +4,6 @@ import { test, expect, type Page } from "@playwright/test";
  * Deferred faithfulness verification is the production default: POST /query
  * returns faithfulness_status "pending" with no report, and the UI polls
  * GET /query/{id}/faithfulness until it resolves.
- *
- * Every other spec mocks the legacy synchronous shape (report inline), so the
- * entire pending -> completed path — spinner, polling loop, failure handling —
- * shipped with no coverage at all.
  */
 
 const mockPapersResponse = { papers: [], total: 0 };
@@ -121,7 +117,6 @@ test.describe("Deferred faithfulness verification", () => {
 
     await ask(page);
 
-    // The answer must not wait on the slowest pipeline stage.
     await expect(
       page.getByText(/Attention is a mechanism/).first()
     ).toBeVisible();
@@ -154,7 +149,6 @@ test.describe("Deferred faithfulness verification", () => {
 
     await expect(page.getByText(/Verifying the answer/i).first()).toBeVisible();
 
-    // The poll must carry the capability token issued with the query.
     await expect(page.getByText(/90%/).first()).toBeVisible({ timeout: 15000 });
     await expect(
       page.getByText(/1 of 1 claims supported/).first()
@@ -216,7 +210,6 @@ test.describe("Deferred faithfulness verification", () => {
 
     await ask(page);
 
-    // Resolves to a definite outcome rather than a permanent spinner.
     await expect(
       page.getByText(/Verification unavailable/i).first()
     ).toBeVisible({ timeout: 20000 });
