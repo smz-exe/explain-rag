@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     database_url: str = ""
     database_pool_min: int = 2
     database_pool_max: int = 10
+    # Bound every database interaction: without these a stalled connection or an
+    # exhausted pool hangs the request until the client gives up.
+    database_command_timeout: float = 30.0  # Max seconds for a single statement
+    database_acquire_timeout: float = 10.0  # Max seconds waiting for a connection
 
     # Model Loading Configuration
     preload_models: bool = True  # Preload models at startup to avoid cold start

@@ -113,6 +113,8 @@ def create_app(
             database_url=settings.database_url,
             pool_min_size=settings.database_pool_min,
             pool_max_size=settings.database_pool_max,
+            command_timeout=settings.database_command_timeout,
+            acquire_timeout=settings.database_acquire_timeout,
         )
 
     if paper_source is None:
@@ -154,6 +156,8 @@ def create_app(
             database_url=settings.database_url,
             pool_min_size=settings.database_pool_min,
             pool_max_size=settings.database_pool_max,
+            command_timeout=settings.database_command_timeout,
+            acquire_timeout=settings.database_acquire_timeout,
         )
 
     if coordinates_storage is None:

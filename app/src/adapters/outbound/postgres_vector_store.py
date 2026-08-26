@@ -1,5 +1,6 @@
 """PostgreSQL vector store adapter using pgvector for similarity search."""
 
+import asyncio
 import json
 import logging
 from collections import defaultdict
@@ -34,6 +35,8 @@ class PostgresVectorStore(VectorStorePort):
         database_url: str,
         pool_min_size: int = 2,
         pool_max_size: int = 10,
+        command_timeout: float = 30.0,
+        acquire_timeout: float = 10.0,
     ):
         """Initialize the PostgreSQL vector store.
 
@@ -41,24 +44,40 @@ class PostgresVectorStore(VectorStorePort):
             database_url: PostgreSQL connection URL.
             pool_min_size: Minimum connection pool size.
             pool_max_size: Maximum connection pool size.
+            command_timeout: Max seconds a single statement may run.
+            acquire_timeout: Max seconds to wait for a free connection.
         """
         self._database_url = database_url
         self._pool_min_size = pool_min_size
         self._pool_max_size = pool_max_size
+        self._command_timeout = command_timeout
+        self._acquire_timeout = acquire_timeout
         self._pool: asyncpg.Pool | None = None
+        self._pool_lock = asyncio.Lock()
 
     async def _get_pool(self) -> asyncpg.Pool:
-        """Get or create the connection pool."""
-        if self._pool is None:
-            self._pool = await asyncpg.create_pool(
-                self._database_url,
-                min_size=self._pool_min_size,
-                max_size=self._pool_max_size,
-                init=self._init_connection,
-                # Disable statement cache for pgbouncer compatibility (Supabase)
-                statement_cache_size=0,
-            )
-            logger.info("PostgreSQL connection pool created")
+        """Get or create the connection pool.
+
+        The lock matters: `if self._pool is None` followed by an await is a
+        check-then-act race, so concurrent first requests would each create a
+        pool and every one but the last would be leaked.
+        """
+        if self._pool is not None:
+            return self._pool
+
+        async with self._pool_lock:
+            if self._pool is None:
+                self._pool = await asyncpg.create_pool(
+                    self._database_url,
+                    min_size=self._pool_min_size,
+                    max_size=self._pool_max_size,
+                    init=self._init_connection,
+                    # Disable statement cache for pgbouncer compatibility (Supabase)
+                    statement_cache_size=0,
+                    command_timeout=self._command_timeout,
+                    timeout=self._acquire_timeout,
+                )
+                logger.info("PostgreSQL connection pool created")
         return self._pool
 
     async def _init_connection(self, conn: asyncpg.Connection) -> None:
