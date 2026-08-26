@@ -73,64 +73,68 @@ class PostgresVectorStore(VectorStorePort):
             logger.info("PostgreSQL connection pool closed")
 
     async def add_chunks(self, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
-        """Store chunks with their corresponding embeddings."""
+        """Store chunks with their corresponding embeddings.
+
+        The paper is keyed by its arxiv_id (a UNIQUE column), not by the
+        per-fetch Paper.id the source mints, so re-ingesting a paper updates
+        the existing row and reuses its id instead of colliding on the
+        constraint. The paper upsert, the removal of any prior chunks, and the
+        new chunk inserts all run in one transaction, so a failure mid-write
+        cannot leave an orphan paper row or a half-replaced chunk set.
+        """
         if not chunks:
             return
 
         pool = await self._get_pool()
 
-        # First, ensure the paper exists (get paper metadata from first chunk)
+        # Paper-level metadata is carried on the first chunk (sanitize all text).
         first_chunk = chunks[0]
-        paper_id = first_chunk.paper_id
+        paper_title = _sanitize_text(first_chunk.metadata.get("paper_title", ""))
+        arxiv_id = _sanitize_text(first_chunk.metadata.get("arxiv_id", ""))
+        url = _sanitize_text(first_chunk.metadata.get("url", ""))
+        pdf_url = _sanitize_text(first_chunk.metadata.get("pdf_url", ""))
+        authors = first_chunk.metadata.get("authors", [])
+        authors = [_sanitize_text(a) for a in authors] if isinstance(authors, list) else []
+        abstract = _sanitize_text(first_chunk.metadata.get("abstract", ""))
 
-        async with pool.acquire() as conn:
-            # Check if paper already exists
-            paper_exists = await conn.fetchval(
-                "SELECT EXISTS(SELECT 1 FROM papers WHERE id = $1)",
-                paper_id,
+        async with pool.acquire() as conn, conn.transaction():
+            # Reuse the existing row's id when this arxiv_id was already
+            # ingested; the RETURNING id is the canonical paper id for its chunks.
+            paper_id = await conn.fetchval(
+                """
+                INSERT INTO papers (id, arxiv_id, title, authors, abstract, url, pdf_url)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT (arxiv_id) DO UPDATE SET
+                    title = EXCLUDED.title,
+                    authors = EXCLUDED.authors,
+                    abstract = EXCLUDED.abstract,
+                    url = EXCLUDED.url,
+                    pdf_url = EXCLUDED.pdf_url
+                RETURNING id
+                """,
+                first_chunk.paper_id,
+                arxiv_id,
+                paper_title,
+                authors,
+                abstract,
+                url,
+                pdf_url,
             )
 
-            if not paper_exists:
-                # Get paper info from chunk metadata (sanitize all text fields)
-                paper_title = _sanitize_text(first_chunk.metadata.get("paper_title", ""))
-                arxiv_id = _sanitize_text(first_chunk.metadata.get("arxiv_id", ""))
-                url = _sanitize_text(first_chunk.metadata.get("url", ""))
-                pdf_url = _sanitize_text(first_chunk.metadata.get("pdf_url", ""))
-                authors = first_chunk.metadata.get("authors", [])
-                # Sanitize each author name
-                authors = [_sanitize_text(a) for a in authors] if isinstance(authors, list) else []
-                abstract = _sanitize_text(first_chunk.metadata.get("abstract", ""))
-
-                await conn.execute(
-                    """
-                    INSERT INTO papers (id, arxiv_id, title, authors, abstract, url, pdf_url)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
-                    ON CONFLICT (id) DO NOTHING
-                    """,
-                    paper_id,
-                    arxiv_id,
-                    paper_title,
-                    authors,
-                    abstract,
-                    url,
-                    pdf_url,
-                )
+            # Replace the paper's chunks wholesale so a re-chunk into fewer
+            # pieces leaves no stale tail rows behind.
+            await conn.execute("DELETE FROM chunks WHERE paper_id = $1", paper_id)
 
             # Insert chunks with embeddings (sanitize text fields to remove null bytes)
             await conn.executemany(
                 """
                 INSERT INTO chunks (id, paper_id, content, chunk_index, section, metadata, embedding)
                 VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)
-                ON CONFLICT (paper_id, chunk_index) DO UPDATE SET
-                    content = EXCLUDED.content,
-                    section = EXCLUDED.section,
-                    metadata = EXCLUDED.metadata,
-                    embedding = EXCLUDED.embedding
                 """,
                 [
                     (
                         chunk.id,
-                        chunk.paper_id,
+                        paper_id,
                         _sanitize_text(chunk.content),
                         chunk.chunk_index,
                         _sanitize_text(chunk.section),

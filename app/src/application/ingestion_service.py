@@ -145,14 +145,16 @@ class IngestionService:
                 error=str(e),
             )
 
-        except Exception as e:
+        except Exception:
+            # Detail (including any driver message) is logged server-side only;
+            # the client gets a generic message so internals never leak.
             logger.exception(f"Unexpected error ingesting {arxiv_id}")
             return IngestionResult(
                 arxiv_id=arxiv_id,
                 title="",
                 chunk_count=0,
                 status="error",
-                error=str(e),
+                error="Ingestion failed due to an internal error. Please try again later.",
             )
 
         finally:

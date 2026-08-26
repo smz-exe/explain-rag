@@ -168,18 +168,24 @@ class TestIngestPaper:
         assert result.status == "error"
         assert result.error == "Corrupt PDF"
 
-    async def test_unexpected_error_returns_error(self, sample_paper, vector_store):
+    async def test_unexpected_error_returns_generic_message(self, sample_paper, vector_store):
+        """An unexpected error must not leak its raw text (e.g. a DB driver message)."""
         source = FakePaperSource(
             sample_paper,
             chunks=[],
-            fetch_errors={sample_paper.arxiv_id: RuntimeError("network down")},
+            fetch_errors={
+                sample_paper.arxiv_id: RuntimeError(
+                    'duplicate key value violates unique constraint "papers_arxiv_id_key"'
+                )
+            },
         )
         service = make_service(source, vector_store)
 
         result = await service.ingest_paper(sample_paper.arxiv_id)
 
         assert result.status == "error"
-        assert result.error == "network down"
+        assert "internal error" in result.error.lower()
+        assert "constraint" not in result.error, "raw driver detail must not reach the client"
 
     async def test_duplicate_in_progress_is_rejected(
         self, sample_paper, sample_chunks, vector_store

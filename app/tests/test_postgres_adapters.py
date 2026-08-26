@@ -3,6 +3,7 @@
 import os
 import uuid
 
+import asyncpg
 import pytest
 
 from src.adapters.outbound.postgres_query_storage import PostgresQueryStorage
@@ -95,6 +96,99 @@ class TestPostgresVectorStore:
 
         # Cleanup
         await vector_store.delete_paper(sample_chunks[0].paper_id)
+
+    async def test_reingesting_same_arxiv_id_does_not_crash(
+        self,
+        vector_store: PostgresVectorStore,
+        sample_chunks: list[Chunk],
+        sample_embeddings: list[list[float]],
+    ):
+        """Re-ingesting an already-stored paper must not raise.
+
+        The paper source mints a fresh Paper.id on every fetch, so a re-ingest
+        arrives with a new paper_id but the same arxiv_id. The old code keyed
+        existence on the new id and inserted with ON CONFLICT (id), so the
+        arxiv_id UNIQUE constraint fired and asyncpg raised UniqueViolationError.
+        """
+        arxiv_id = sample_chunks[0].metadata["arxiv_id"]
+        await vector_store.add_chunks(sample_chunks, sample_embeddings)
+
+        # Simulate a second fetch of the same paper: new paper_id + chunk ids,
+        # same arxiv_id, and updated content.
+        second_paper_id = str(uuid.uuid4())
+        refetched = [
+            Chunk(
+                id=str(uuid.uuid4()),
+                paper_id=second_paper_id,
+                content=f"Updated chunk {i} content.",
+                chunk_index=i,
+                section=f"Section {i}",
+                metadata={"paper_title": "Test Paper on ML", "arxiv_id": arxiv_id},
+            )
+            for i in range(3)
+        ]
+        await vector_store.add_chunks(refetched, sample_embeddings)
+
+        try:
+            papers = [p for p in await vector_store.list_papers() if p["arxiv_id"] == arxiv_id]
+            assert len(papers) == 1, "re-ingestion must not create a duplicate paper row"
+
+            canonical_id = papers[0]["paper_id"]
+            results = await vector_store.search([0.15] * 384, top_k=10, paper_ids=[canonical_id])
+            assert results, "chunks must be attached to the canonical paper id"
+            assert all("Updated chunk" in chunk.content for chunk, _ in results)
+        finally:
+            await vector_store.delete_paper(sample_chunks[0].paper_id)
+            await vector_store.delete_paper(second_paper_id)
+
+    async def test_reingesting_fewer_chunks_leaves_no_stale_rows(
+        self,
+        vector_store: PostgresVectorStore,
+        sample_chunks: list[Chunk],
+        sample_embeddings: list[list[float]],
+    ):
+        """A paper re-chunked into fewer pieces must not keep its old tail chunks."""
+        arxiv_id = sample_chunks[0].metadata["arxiv_id"]
+        await vector_store.add_chunks(sample_chunks, sample_embeddings)
+
+        shrunk = [
+            Chunk(
+                id=str(uuid.uuid4()),
+                paper_id=str(uuid.uuid4()),
+                content="Only chunk now.",
+                chunk_index=0,
+                section="Section 0",
+                metadata={"paper_title": "Test Paper on ML", "arxiv_id": arxiv_id},
+            )
+        ]
+        await vector_store.add_chunks(shrunk, sample_embeddings[:1])
+
+        try:
+            papers = [p for p in await vector_store.list_papers() if p["arxiv_id"] == arxiv_id]
+            assert papers[0]["chunk_count"] == 1
+        finally:
+            # The paper keeps its original id across re-ingestion, so clean up by that.
+            await vector_store.delete_paper(sample_chunks[0].paper_id)
+
+    async def test_failed_chunk_write_leaves_no_orphan_paper(
+        self,
+        vector_store: PostgresVectorStore,
+        sample_chunks: list[Chunk],
+    ):
+        """A failure during chunk insert must roll back the paper row too.
+
+        Without a transaction the papers INSERT committed on its own, leaving an
+        orphan row that then blocked re-ingestion of that arxiv_id forever.
+        """
+        arxiv_id = sample_chunks[0].metadata["arxiv_id"]
+        # 5 dimensions instead of 384: the embedding column rejects this.
+        bad_embeddings = [[0.1] * 5 for _ in sample_chunks]
+
+        with pytest.raises(asyncpg.PostgresError):
+            await vector_store.add_chunks(sample_chunks, bad_embeddings)
+
+        papers = [p for p in await vector_store.list_papers() if p["arxiv_id"] == arxiv_id]
+        assert papers == [], "paper row must not survive a failed chunk write"
 
     async def test_delete_paper(
         self,
