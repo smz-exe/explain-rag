@@ -22,6 +22,21 @@ class QueryStoragePort(ABC):
         ...
 
     @abstractmethod
+    async def update(self, response: QueryResponse) -> bool:
+        """Overwrite an existing query, never creating one.
+
+        Distinct from store(), which upserts: a background task finishing after
+        the query was deleted must not bring it back.
+
+        Args:
+            response: The updated QueryResponse.
+
+        Returns:
+            True if a stored query was updated, False if it no longer exists.
+        """
+        ...
+
+    @abstractmethod
     async def get(self, query_id: str) -> QueryResponse | None:
         """Retrieve a query response by ID.
 

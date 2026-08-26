@@ -541,6 +541,23 @@ class TestPostgresQueryStorage:
         # Cleanup
         await query_storage.delete(sample_query_response.query_id)
 
+    async def test_update_overwrites_but_never_inserts(
+        self,
+        query_storage: PostgresQueryStorage,
+        sample_query_response: QueryResponse,
+    ):
+        """update() must not resurrect a deleted query the way store() would."""
+        await query_storage.store(sample_query_response)
+        changed = sample_query_response.model_copy(update={"answer": "revised answer"})
+
+        assert await query_storage.update(changed) is True
+        assert (await query_storage.get(sample_query_response.query_id)).answer == "revised answer"
+
+        await query_storage.delete(sample_query_response.query_id)
+
+        assert await query_storage.update(changed) is False
+        assert await query_storage.get(sample_query_response.query_id) is None
+
     async def test_list_by_verification_status_separates_lifecycle_states(
         self,
         query_storage: PostgresQueryStorage,

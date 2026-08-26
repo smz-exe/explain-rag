@@ -430,6 +430,13 @@ class MockQueryStoragePort(QueryStoragePort):
         self.store_calls.append(response)
         self.queries[response.query_id] = response
 
+    async def update(self, response: QueryResponse) -> bool:
+        """Overwrite an existing query; never create one."""
+        if response.query_id not in self.queries:
+            return False
+        self.queries[response.query_id] = response
+        return True
+
     async def get(self, query_id: str) -> QueryResponse | None:
         """Retrieve a query response by ID."""
         return self.queries.get(query_id)

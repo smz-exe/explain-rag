@@ -89,22 +89,33 @@ class PostgresQueryStorage(QueryStoragePort):
             self._pool = None
             logger.info("PostgreSQL query storage pool closed")
 
-    async def store(self, response: QueryResponse) -> None:
-        """Store a query response."""
-        pool = await self._get_pool()
-
-        created_at = datetime.now(UTC)
-
-        # Serialize complex fields to JSON
-        citations_json = json.dumps([c.model_dump() for c in response.citations])
-        retrieved_chunks_json = json.dumps([c.model_dump() for c in response.retrieved_chunks])
+    @staticmethod
+    def _serialize(response: QueryResponse) -> dict:
+        """JSON payloads shared by store() and update()."""
         # Completed results store the bare FaithfulnessResult dict (legacy shape);
         # pending/failed store a status envelope so reads can distinguish them
         if response.faithfulness is not None:
-            faithfulness_details_json = json.dumps(response.faithfulness.model_dump())
+            faithfulness_details = json.dumps(response.faithfulness.model_dump())
         else:
-            faithfulness_details_json = json.dumps({"status": response.faithfulness_status})
-        timing_json = json.dumps(response.trace.model_dump())
+            faithfulness_details = json.dumps({"status": response.faithfulness_status})
+        return {
+            "citations": json.dumps([c.model_dump() for c in response.citations]),
+            "retrieved_chunks": json.dumps([c.model_dump() for c in response.retrieved_chunks]),
+            "faithfulness_details": faithfulness_details,
+            "score": response.faithfulness.score if response.faithfulness else None,
+            "timing": json.dumps(response.trace.model_dump()),
+        }
+
+    async def store(self, response: QueryResponse) -> None:
+        """Store a query response, inserting or overwriting it."""
+        pool = await self._get_pool()
+
+        created_at = datetime.now(UTC)
+        payload = self._serialize(response)
+        citations_json = payload["citations"]
+        retrieved_chunks_json = payload["retrieved_chunks"]
+        faithfulness_details_json = payload["faithfulness_details"]
+        timing_json = payload["timing"]
 
         async with pool.acquire() as conn:
             await conn.execute(
@@ -134,6 +145,38 @@ class PostgresQueryStorage(QueryStoragePort):
             )
 
         logger.debug(f"Stored query {response.query_id}")
+
+    async def update(self, response: QueryResponse) -> bool:
+        """Overwrite an existing query row; never insert one."""
+        if not _is_uuid(response.query_id):
+            return False
+
+        pool = await self._get_pool()
+        payload = self._serialize(response)
+
+        async with pool.acquire() as conn:
+            updated_id = await conn.fetchval(
+                """
+                UPDATE queries SET
+                    answer = $2,
+                    citations = $3,
+                    retrieved_chunks = $4,
+                    faithfulness_score = $5,
+                    faithfulness_details = $6,
+                    timing = $7
+                WHERE id = $1
+                RETURNING id
+                """,
+                response.query_id,
+                response.answer,
+                payload["citations"],
+                payload["retrieved_chunks"],
+                payload["score"],
+                payload["faithfulness_details"],
+                payload["timing"],
+            )
+
+        return updated_id is not None
 
     async def get(self, query_id: str) -> QueryResponse | None:
         """Retrieve a query response by ID."""

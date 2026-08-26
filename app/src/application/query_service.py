@@ -262,7 +262,13 @@ class QueryService:
 
         if self._query_storage:
             try:
-                await self._query_storage.store(updated)
+                # update(), not store(): an upsert would resurrect a query the
+                # admin deleted while verification was still running.
+                if not await self._query_storage.update(updated):
+                    logger.info(
+                        f"Query {response.query_id} no longer exists; "
+                        "discarding its verification result"
+                    )
             except Exception:
                 logger.exception(
                     f"Failed to persist deferred verification for query {response.query_id}"
@@ -299,10 +305,10 @@ class QueryService:
                 stored = await self._query_storage.get(query_id)
                 if stored is None or stored.faithfulness_status != "pending":
                     continue
-                await self._query_storage.store(
+                if await self._query_storage.update(
                     stored.model_copy(update={"faithfulness_status": "failed"})
-                )
-                reconciled += 1
+                ):
+                    reconciled += 1
             except Exception:
                 logger.exception(f"Could not reconcile abandoned verification {query_id}")
 

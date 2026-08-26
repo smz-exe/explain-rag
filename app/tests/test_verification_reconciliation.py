@@ -112,3 +112,26 @@ class TestAbandonedVerificationReconciliation:
         stored = await storage.get("racing-1")
         assert stored.faithfulness_status == "completed"
         assert stored.faithfulness is not None
+
+
+class TestDeletedQueriesStayDeleted:
+    """A background task must not resurrect a record the admin removed."""
+
+    @pytest.mark.asyncio
+    async def test_completing_a_deleted_query_does_not_recreate_it(self, sample_chunks):
+        """complete_verification persisted with a full-row upsert.
+
+        If the query was deleted while verification was still running, that
+        upsert re-inserted it — the deletion silently undone by a task nobody
+        could see.
+        """
+        storage = MockQueryStoragePort()
+        response = make_response("doomed-1", "pending")
+        await storage.store(response)
+        service = make_service(storage, sample_chunks)
+
+        assert await storage.delete("doomed-1") is True
+
+        await service.complete_verification(response)
+
+        assert await storage.get("doomed-1") is None, "deleted query was resurrected"
