@@ -248,7 +248,15 @@ class QueryService:
                 update={
                     "faithfulness": result,
                     "faithfulness_status": "completed",
-                    "trace": response.trace.model_copy(update={"faithfulness_time_ms": faith_time}),
+                    "trace": response.trace.model_copy(
+                        update={
+                            "faithfulness_time_ms": faith_time,
+                            # total_time_ms was measured before this stage ran.
+                            # Leaving it alone lets the persisted trace report a
+                            # faithfulness stage longer than the whole request.
+                            "total_time_ms": response.trace.total_time_ms + faith_time,
+                        }
+                    ),
                 }
             )
 

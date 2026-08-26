@@ -1,5 +1,7 @@
 """Tests for deferred faithfulness verification in QueryService."""
 
+import asyncio
+
 import pytest
 
 from src.application.query_service import QueryService
@@ -12,6 +14,23 @@ from tests.conftest import (
     MockQueryStoragePort,
     MockVectorStorePort,
 )
+
+
+class SlowFaithfulness(FaithfulnessPort):
+    """Verification that takes longer than the rest of the pipeline.
+
+    Realistic: verification is the slowest stage (it decomposes the answer into
+    claims and checks each against the sources), which is exactly why it was
+    deferred.
+    """
+
+    def __init__(self, delay_seconds: float = 0.05):
+        self._delay = delay_seconds
+        self._inner = MockFaithfulnessPort()
+
+    async def verify(self, answer, chunks):
+        await asyncio.sleep(self._delay)
+        return await self._inner.verify(answer, chunks)
 
 
 class FailingFaithfulness(FaithfulnessPort):
@@ -66,6 +85,34 @@ class TestDeferredVerification:
         # The original response object is not mutated
         assert response.faithfulness is None
         assert response.faithfulness_status == "pending"
+
+    async def test_completed_trace_is_internally_consistent(self, sample_chunks):
+        """total_time_ms must cover the verification it now reports.
+
+        total_time_ms was computed before deferred verification ran and never
+        revisited, so the persisted trace could claim a faithfulness stage
+        longer than the whole request — a timing breakdown that cannot be true.
+        """
+        service, storage = make_service(sample_chunks, faithfulness=SlowFaithfulness())
+        response = await service.query(
+            QueryRequest(question="What is self-attention?"), defer_verification=True
+        )
+        pending_total = response.trace.total_time_ms
+
+        await service.complete_verification(response)
+
+        trace = (await storage.get(response.query_id)).trace
+        assert trace.faithfulness_time_ms <= trace.total_time_ms
+        assert trace.total_time_ms >= pending_total
+        # The stages must still add up to the whole.
+        stages = (
+            trace.embedding_time_ms
+            + trace.retrieval_time_ms
+            + (trace.reranking_time_ms or 0.0)
+            + trace.generation_time_ms
+            + trace.faithfulness_time_ms
+        )
+        assert stages <= trace.total_time_ms + 1e-6
 
     async def test_verification_failure_marks_failed_without_raising(self, sample_chunks):
         service, storage = make_service(sample_chunks, faithfulness=FailingFaithfulness())
