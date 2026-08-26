@@ -10,8 +10,6 @@ primary_region = 'nrt'
 dockerfile = 'Dockerfile'
 
 [env]
-API_HOST = '0.0.0.0'
-API_PORT = '8000'
 ENVIRONMENT = 'production'
 # Requests reach the app through fly-proxy, so request.client.host is the
 # proxy for every caller. fly-proxy sets Fly-Client-IP itself, so it is safe

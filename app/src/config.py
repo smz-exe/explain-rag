@@ -32,9 +32,7 @@ class Settings(BaseSettings):
     recompute_coordinates_on_startup: bool = True
 
     # Embedding Configuration (FastEmbed with ONNX Runtime)
-    embedding_provider: str = "local"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"  # FastEmbed format
-    openai_api_key: SecretStr = SecretStr("")
 
     # Retrieval Configuration
     chunk_size: int = 1000
@@ -69,8 +67,8 @@ class Settings(BaseSettings):
     hdbscan_min_samples: int = 1  # Minimum samples for core points
 
     # Server Configuration
-    api_host: str = "0.0.0.0"
-    api_port: int = 8000
+    # Note: the listen address and port are set by the Dockerfile's uvicorn
+    # command, not from here — a setting nothing reads would only mislead.
     cors_origins: list[str] = ["http://localhost:3000"]
     environment: Literal["development", "production"] = "development"
 

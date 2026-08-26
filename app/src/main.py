@@ -100,6 +100,11 @@ def create_app(
     if hf_token:
         os.environ["HF_TOKEN"] = hf_token
 
+    # HuggingFace reads offline mode from the environment too. Without this the
+    # setting was inert: HF_OFFLINE_MODE could be set anywhere and change nothing.
+    if settings.hf_offline_mode:
+        os.environ["HF_HUB_OFFLINE"] = "1"
+
     # Initialize outbound adapters (use provided or create real ones)
     if embedding is None:
         logger.info(f"Initializing embedding adapter: {settings.embedding_model}")
