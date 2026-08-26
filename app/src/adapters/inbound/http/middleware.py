@@ -4,7 +4,9 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
+from starlette.datastructures import Headers
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 _HSTS_VALUE = "max-age=63072000; includeSubDomains"
 
@@ -32,32 +34,69 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-class BodySizeLimitMiddleware(BaseHTTPMiddleware):
-    """Reject requests whose declared body size exceeds the configured limit.
+class BodySizeLimitMiddleware:
+    """Reject requests whose body exceeds the configured limit.
 
-    The check is based on the Content-Length header; requests without one
-    (e.g. chunked transfer) pass through and are bounded by the server's
-    own limits.
+    Content-Length is checked first, so an oversized upload is refused without
+    reading it. That header alone is not enough: a chunked request carries
+    none, and the handler downstream would buffer the whole body into memory
+    to parse it — a memory-exhaustion vector on endpoints reachable pre-auth.
+    So the body is also counted as it arrives and cut off at the limit.
+
+    Written as raw ASGI rather than BaseHTTPMiddleware because the latter hands
+    the downstream app the original receive channel, so wrapping the request
+    stream there has no effect on what the handler actually reads.
     """
 
-    def __init__(self, app, max_bytes: int):
-        super().__init__(app)
+    def __init__(self, app: ASGIApp, max_bytes: int):
+        self.app = app
         self._max_bytes = max_bytes
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        content_length = request.headers.get("content-length")
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        content_length = Headers(scope=scope).get("content-length")
         if (
             content_length is not None
             and content_length.isdigit()
             and int(content_length) > self._max_bytes
         ):
-            return JSONResponse(
-                status_code=413,
-                content={
-                    "error": "request_too_large",
-                    "message": f"Request body exceeds the {self._max_bytes}-byte limit.",
-                },
-            )
-        return await call_next(request)
+            await self._reject(scope, receive, send)
+            return
+
+        # Buffer up to the limit: anything larger is refused before the handler
+        # sees it, and the limit is exactly how much memory we accept holding.
+        body = bytearray()
+        more_body = True
+        while more_body:
+            message = await receive()
+            if message["type"] != "http.request":
+                break
+            body.extend(message.get("body", b""))
+            if len(body) > self._max_bytes:
+                await self._reject(scope, receive, send)
+                return
+            more_body = message.get("more_body", False)
+
+        replayed = False
+
+        async def replay_receive() -> Message:
+            nonlocal replayed
+            if not replayed:
+                replayed = True
+                return {"type": "http.request", "body": bytes(body), "more_body": False}
+            return await receive()
+
+        await self.app(scope, replay_receive, send)
+
+    async def _reject(self, scope: Scope, receive: Receive, send: Send) -> None:
+        response = JSONResponse(
+            status_code=413,
+            content={
+                "error": "request_too_large",
+                "message": f"Request body exceeds the {self._max_bytes}-byte limit.",
+            },
+        )
+        await response(scope, receive, send)

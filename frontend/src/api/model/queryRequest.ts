@@ -8,9 +8,17 @@
 
 /**
  * Request model for query endpoint.
+ *
+ * The bounds are not cosmetic: every question is embedded, sent to the LLM,
+ * and persisted, so an unbounded field is a cost-amplification vector on an
+ * endpoint anyone can reach.
  */
 export interface QueryRequest {
-  /** Natural language question */
+  /**
+     * Natural language question
+     * @minLength 1
+     * @maxLength 2000
+     */
   question: string;
   /**
      * Number of chunks to retrieve

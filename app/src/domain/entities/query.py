@@ -2,20 +2,40 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.domain.entities.explanation import ExplanationTrace, FaithfulnessResult
 
 
 class QueryRequest(BaseModel):
-    """Request model for query endpoint."""
+    """Request model for query endpoint.
 
-    question: str = Field(description="Natural language question")
+    The bounds are not cosmetic: every question is embedded, sent to the LLM,
+    and persisted, so an unbounded field is a cost-amplification vector on an
+    endpoint anyone can reach.
+    """
+
+    question: str = Field(
+        min_length=1,
+        max_length=2000,
+        description="Natural language question",
+    )
     top_k: int = Field(default=10, ge=1, le=50, description="Number of chunks to retrieve")
     paper_ids: list[str] | None = Field(
-        default=None, description="Optional: scope query to specific papers"
+        default=None,
+        max_length=50,
+        description="Optional: scope query to specific papers",
     )
     enable_reranking: bool = Field(default=False, description="Enable cross-encoder reranking")
+
+    @field_validator("question")
+    @classmethod
+    def question_must_not_be_blank(cls, value: str) -> str:
+        """Reject whitespace-only questions, which reach the LLM as empty."""
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("question must not be blank")
+        return stripped
 
 
 class Citation(BaseModel):

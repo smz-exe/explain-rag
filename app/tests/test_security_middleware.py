@@ -103,6 +103,57 @@ class TestBodySizeLimit:
 
         assert response.status_code == 200
 
+    async def test_chunked_body_cannot_bypass_the_limit(self, small_limit_client):
+        """A chunked request sends no Content-Length, so the header check alone misses it.
+
+        Starlette buffers the whole body to parse JSON, so an unbounded chunked
+        upload is a memory-exhaustion vector on an endpoint reachable pre-auth.
+        """
+
+        async def oversized_chunks():
+            for _ in range(10):
+                yield b"x" * 100
+
+        response = await small_limit_client.post(
+            "/query",
+            content=oversized_chunks(),
+            headers={"Content-Type": "application/json"},
+        )
+
+        assert response.status_code == 413
+        assert response.json()["error"] == "request_too_large"
+
+
+class TestQuestionLengthLimit:
+    """The question field itself must be bounded, not just the envelope."""
+
+    async def test_absurdly_long_question_is_rejected(self, client):
+        """Without a max_length a ~1MB question is embedded, sent to Claude, and stored."""
+        response = await client.post("/query", json={"question": "x" * 100_000})
+
+        assert response.status_code == 422
+
+    async def test_reasonable_question_is_accepted(self, client):
+        response = await client.post("/query", json={"question": "What is self-attention?" * 20})
+
+        assert response.status_code == 200
+
+    async def test_empty_question_is_rejected(self, client):
+        response = await client.post("/query", json={"question": "   "})
+
+        assert response.status_code == 422
+
+    async def test_paper_ids_list_is_bounded(self, client):
+        response = await client.post(
+            "/query",
+            json={
+                "question": "What is self-attention?",
+                "paper_ids": [f"p-{i}" for i in range(200)],
+            },
+        )
+
+        assert response.status_code == 422
+
 
 class TestProbes:
     """Liveness and readiness endpoints for orchestration health checks."""
