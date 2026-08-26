@@ -265,6 +265,43 @@ class QueryService:
         )
         return updated
 
+    async def reconcile_abandoned_verifications(self) -> int:
+        """Close out verifications that no process is running any more.
+
+        Deferred verification is an in-process background task, so a suspend or
+        redeploy mid-flight leaves the stored query saying "pending" forever —
+        a record that lies about work nobody will finish. Called at startup,
+        when by definition no verification from a previous process is alive.
+
+        Returns:
+            Number of queries moved from "pending" to "failed".
+        """
+        if self._query_storage is None:
+            return 0
+
+        try:
+            stale_ids = await self._query_storage.list_by_verification_status("pending")
+        except Exception:
+            logger.exception("Could not list pending verifications; skipping reconciliation")
+            return 0
+
+        reconciled = 0
+        for query_id in stale_ids:
+            try:
+                stored = await self._query_storage.get(query_id)
+                if stored is None or stored.faithfulness_status != "pending":
+                    continue
+                await self._query_storage.store(
+                    stored.model_copy(update={"faithfulness_status": "failed"})
+                )
+                reconciled += 1
+            except Exception:
+                logger.exception(f"Could not reconcile abandoned verification {query_id}")
+
+        if reconciled:
+            logger.info(f"Marked {reconciled} abandoned verification(s) as failed")
+        return reconciled
+
     async def get_query(self, query_id: str) -> QueryResponse:
         """Retrieve a stored query response by ID.
 

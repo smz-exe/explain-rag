@@ -440,6 +440,52 @@ class TestPostgresQueryStorage:
         # Cleanup
         await query_storage.delete(sample_query_response.query_id)
 
+    async def test_list_by_verification_status_separates_lifecycle_states(
+        self,
+        query_storage: PostgresQueryStorage,
+        sample_query_response: QueryResponse,
+    ):
+        """Startup reconciliation depends on this JSONB query being exactly right.
+
+        Completed results store the bare FaithfulnessResult (with a "score"
+        key); pending and failed store a status envelope instead.
+        """
+        completed = sample_query_response
+        pending = sample_query_response.model_copy(
+            update={
+                "query_id": str(uuid.uuid4()),
+                "faithfulness": None,
+                "faithfulness_status": "pending",
+            }
+        )
+        failed = sample_query_response.model_copy(
+            update={
+                "query_id": str(uuid.uuid4()),
+                "faithfulness": None,
+                "faithfulness_status": "failed",
+            }
+        )
+        for response in (completed, pending, failed):
+            await query_storage.store(response)
+
+        try:
+            pending_ids = await query_storage.list_by_verification_status("pending")
+            failed_ids = await query_storage.list_by_verification_status("failed")
+            completed_ids = await query_storage.list_by_verification_status("completed")
+
+            assert pending.query_id in pending_ids
+            assert pending.query_id not in failed_ids
+            assert pending.query_id not in completed_ids
+
+            assert failed.query_id in failed_ids
+            assert failed.query_id not in pending_ids
+
+            assert completed.query_id in completed_ids
+            assert completed.query_id not in pending_ids
+        finally:
+            for response in (completed, pending, failed):
+                await query_storage.delete(response.query_id)
+
     async def test_list_recent(
         self,
         query_storage: PostgresQueryStorage,

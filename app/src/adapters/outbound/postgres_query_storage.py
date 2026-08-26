@@ -197,6 +197,32 @@ class PostgresQueryStorage(QueryStoragePort):
             for row in rows
         ]
 
+    async def list_by_verification_status(self, status: str) -> list[str]:
+        """List query IDs in the given verification lifecycle state.
+
+        Completed results store the bare FaithfulnessResult (which has a
+        "score" key); pending and failed store a status envelope. The query
+        mirrors how get() distinguishes them.
+        """
+        pool = await self._get_pool()
+
+        async with pool.acquire() as conn:
+            if status == "completed":
+                rows = await conn.fetch(
+                    "SELECT id FROM queries WHERE faithfulness_details ? 'score'"
+                )
+            else:
+                rows = await conn.fetch(
+                    """
+                    SELECT id FROM queries
+                    WHERE NOT (faithfulness_details ? 'score')
+                      AND faithfulness_details->>'status' = $1
+                    """,
+                    status,
+                )
+
+        return [str(row["id"]) for row in rows]
+
     async def delete(self, query_id: str) -> bool:
         """Delete a query from storage."""
         pool = await self._get_pool()

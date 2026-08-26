@@ -439,6 +439,10 @@ class MockQueryStoragePort(QueryStoragePort):
             for q in list(self.queries.values())[-limit:]
         ]
 
+    async def list_by_verification_status(self, status: str) -> list[str]:
+        """List query IDs in the given verification lifecycle state."""
+        return [q.query_id for q in self.queries.values() if q.faithfulness_status == status]
+
     async def delete(self, query_id: str) -> bool:
         """Delete a query."""
         if query_id in self.queries:

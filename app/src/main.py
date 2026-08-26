@@ -238,6 +238,13 @@ def create_app(
         """Lifespan context manager for startup and shutdown events."""
         # Startup
         logger.info("Running startup tasks...")
+        # Any verification still "pending" was owned by a process that is gone,
+        # so nothing will ever finish it; close those records out rather than
+        # leaving them pending forever. Never fail startup over it.
+        try:
+            await query_service.reconcile_abandoned_verifications()
+        except Exception:
+            logger.exception("Startup verification reconciliation failed")
         await coordinates_service.initialize()
         if settings.recompute_coordinates_on_startup:
             # Self-heal an empty Research Atlas after deploys (the coordinates

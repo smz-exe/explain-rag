@@ -46,6 +46,18 @@ class QueryStoragePort(ABC):
         ...
 
     @abstractmethod
+    async def list_by_verification_status(self, status: str) -> list[str]:
+        """List IDs of queries whose verification is in the given lifecycle state.
+
+        Args:
+            status: One of "completed", "pending", "failed".
+
+        Returns:
+            Query IDs in that state.
+        """
+        ...
+
+    @abstractmethod
     async def delete(self, query_id: str) -> bool:
         """Delete a query from storage.
 
