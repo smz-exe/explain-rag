@@ -177,6 +177,38 @@ class TestArchitectureRules:
 
         assert not offenders, f"application layer reaches into adapters: {offenders}"
 
+    def test_http_routers_delegate_rather_than_orchestrate(self):
+        """A router may hold at most one port, and only to delegate to it.
+
+        Composing several ports is a use case, and use cases belong in
+        application/ where a second inbound adapter can reuse them and where
+        they are testable without HTTP. Judged on what create_router() accepts,
+        not on imports: a router may legitimately import a port module for its
+        exception types or DTOs without ever holding an instance.
+
+        auth and health each hold one port deliberately. auth mints JWTs and
+        sets cookies — HTTP-specific credential mechanics that would drag
+        transport concerns into the application layer. health exists for the
+        platform's probes, not for any domain use case.
+        """
+        offenders: dict[str, list[str]] = {}
+        for path in self._python_files("adapters", "inbound", "http"):
+            for node in ast.walk(ast.parse(path.read_text())):
+                if not (isinstance(node, ast.FunctionDef) and node.name == "create_router"):
+                    continue
+                held = [
+                    arg.arg
+                    for arg in node.args.args
+                    if arg.annotation and "Port" in ast.unparse(arg.annotation)
+                ]
+                if len(held) > 1:
+                    offenders[path.name] = held
+
+        assert not offenders, (
+            f"HTTP routers orchestrating multiple ports: {offenders}. "
+            "Move the composition into a service under src/application/."
+        )
+
     def test_sdk_imports_stay_in_outbound_adapters(self):
         sdk_packages = {"anthropic", "asyncpg", "arxiv", "fastembed", "fitz", "umap", "hdbscan"}
         offenders: dict[str, set[str]] = {}

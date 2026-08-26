@@ -1,13 +1,13 @@
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from src.adapters.inbound.http.auth import require_admin
-from src.domain.ports.paper_source import PaperSourcePort
-from src.domain.ports.vector_store import VectorStorePort
-
-logger = logging.getLogger(__name__)
+from src.application.paper_service import (
+    PaperSearchError,
+    PaperSearchUnavailableError,
+    PaperService,
+)
+from src.domain.ports.paper_source import PaperNotFoundError
 
 
 class PaperInfo(BaseModel):
@@ -50,15 +50,11 @@ class PaperSearchResponse(BaseModel):
     total: int
 
 
-def create_router(
-    vector_store: VectorStorePort,
-    paper_source: PaperSourcePort | None = None,
-) -> APIRouter:
+def create_router(paper_service: PaperService) -> APIRouter:
     """Create the papers router.
 
     Args:
-        vector_store: The vector store instance.
-        paper_source: Optional paper source for search functionality.
+        paper_service: The service managing the paper corpus.
 
     Returns:
         Configured APIRouter.
@@ -68,7 +64,7 @@ def create_router(
     @router.get("", response_model=PapersResponse)
     async def list_papers() -> PapersResponse:
         """List all ingested papers."""
-        papers = await vector_store.list_papers()
+        papers = await paper_service.list_papers()
 
         return PapersResponse(
             papers=[
@@ -98,14 +94,13 @@ def create_router(
         Raises:
             HTTPException: 404 if paper not found.
         """
-        deleted_count = await vector_store.delete_paper(paper_id)
-
-        # None means no such paper; 0 means it existed and had no chunks.
-        if deleted_count is None:
+        try:
+            deleted_count = await paper_service.delete_paper(paper_id)
+        except PaperNotFoundError:
             raise HTTPException(
                 status_code=404,
                 detail=f"Paper not found: {paper_id}",
-            )
+            ) from None
 
         return DeletePaperResponse(
             paper_id=paper_id,
@@ -137,23 +132,21 @@ def create_router(
             502: If the arXiv search fails.
             503: If paper source is not configured.
         """
-        if paper_source is None:
+        try:
+            papers = await paper_service.search_papers(query, max_results)
+        except PaperSearchUnavailableError:
             raise HTTPException(
                 status_code=503,
                 detail="Paper search is not available: paper source not configured",
-            )
-
-        try:
-            papers = await paper_source.search(query, max_results)
-        except Exception as e:
-            # Detail stays in the log. Interpolating the exception here bypassed
-            # the global handler's production sanitizing and shipped internals
+            ) from None
+        except PaperSearchError:
+            # The service logged the cause. Interpolating it here bypassed the
+            # global handler's production sanitizing and shipped internals
             # (URLs, driver messages, stack context) straight to the client.
-            logger.exception(f"arXiv search failed for query: {query!r}")
             raise HTTPException(
                 status_code=502,
                 detail="arXiv search is temporarily unavailable. Please try again.",
-            ) from e
+            ) from None
 
         return PaperSearchResponse(
             papers=[
@@ -161,7 +154,7 @@ def create_router(
                     arxiv_id=p.arxiv_id,
                     title=p.title,
                     authors=p.authors,
-                    abstract=p.abstract[:500] + "..." if len(p.abstract) > 500 else p.abstract,
+                    abstract=p.abstract,
                     url=p.url,
                 )
                 for p in papers

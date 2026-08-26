@@ -35,8 +35,11 @@ from src.adapters.outbound.postgres_vector_store import PostgresVectorStore
 from src.adapters.outbound.sqlite_coordinates_storage import SQLiteCoordinatesStorage
 from src.adapters.outbound.umap_reducer import UMAPReducer
 from src.application.coordinates_service import CoordinatesService
+from src.application.evaluation_service import EvaluationService
 from src.application.ingestion_service import IngestionService
+from src.application.paper_service import PaperService
 from src.application.query_service import QueryService
+from src.application.stats_service import StatsService
 from src.config import Settings
 from src.domain.ports.clustering import ClusteringPort
 from src.domain.ports.coordinates_storage import CoordinatesStoragePort
@@ -238,6 +241,21 @@ def create_app(
         storage=coordinates_storage,
     )
 
+    paper_service = PaperService(
+        vector_store=vector_store,
+        paper_source=paper_source,
+    )
+
+    evaluation_service = EvaluationService(
+        evaluation=evaluator,
+        query_storage=query_storage,
+    )
+
+    stats_service = StatsService(
+        vector_store=vector_store,
+        query_storage=query_storage,
+    )
+
     # Define lifespan context manager for startup/shutdown events
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -330,13 +348,13 @@ def create_app(
     # Mount routers
     app.include_router(auth.create_router(user_storage, settings))
     app.include_router(ingest.create_router(ingestion_service))
-    app.include_router(papers.create_router(vector_store, paper_source))
+    app.include_router(papers.create_router(paper_service))
     app.include_router(coordinates.create_router(coordinates_service))
     app.include_router(coordinates.create_admin_router(coordinates_service))
     app.include_router(health.create_router(vector_store))
     app.include_router(query.create_router(query_service, settings))
-    app.include_router(stats.create_router(vector_store, query_storage))
-    app.include_router(evaluation.create_router(evaluator, query_storage))
+    app.include_router(stats.create_router(stats_service))
+    app.include_router(evaluation.create_router(evaluation_service))
 
     @app.get("/")
     async def root():
