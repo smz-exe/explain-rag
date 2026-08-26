@@ -208,10 +208,14 @@ class MockVectorStorePort(VectorStorePort):
 
     def __init__(self, chunks: list[Chunk] | None = None):
         self.chunks = chunks or []
+        self.added_papers: list[Paper] = []
         self.added_chunks: list[Chunk] = []
 
-    async def add_chunks(self, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
-        """Store chunks (embeddings accepted to match the port contract)."""
+    async def add_chunks(
+        self, paper: Paper, chunks: list[Chunk], embeddings: list[list[float]]
+    ) -> None:
+        """Store a paper and its chunks (embeddings accepted to match the port)."""
+        self.added_papers.append(paper)
         self.added_chunks.extend(chunks)
         self.chunks.extend(chunks)
 

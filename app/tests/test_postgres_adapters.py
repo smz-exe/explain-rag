@@ -11,6 +11,7 @@ from src.adapters.outbound.postgres_vector_store import PostgresVectorStore
 from src.application.query_service import QueryService
 from src.domain.entities.chunk import Chunk
 from src.domain.entities.explanation import ExplanationTrace, FaithfulnessResult
+from src.domain.entities.paper import Paper
 from src.domain.entities.query import Citation, QueryRequest, QueryResponse, RetrievedChunk
 
 # Skip tests if DATABASE_URL is not set (e.g., in CI without Supabase)
@@ -61,6 +62,26 @@ class TestPostgresVectorStore:
         """Create sample embeddings (384-dimensional for all-MiniLM-L6-v2)."""
         return [[0.1 * (i + 1)] * 384 for i in range(3)]
 
+    @pytest.fixture
+    def sample_paper(self, sample_chunks: list[Chunk]) -> Paper:
+        """The paper the sample chunks belong to."""
+        arxiv_id = sample_chunks[0].metadata["arxiv_id"]
+        return Paper(
+            id=sample_chunks[0].paper_id,
+            arxiv_id=arxiv_id,
+            title="Test Paper on ML",
+            authors=["Author One", "Author Two"],
+            abstract="This is a test abstract.",
+            url=f"https://arxiv.org/abs/{arxiv_id}",
+            pdf_url=f"https://arxiv.org/pdf/{arxiv_id}.pdf",
+        )
+
+    @pytest.fixture
+    def sample_paper_and_chunks(
+        self, sample_paper: Paper, sample_chunks: list[Chunk]
+    ) -> tuple[Paper, list[Chunk]]:
+        return sample_paper, sample_chunks
+
     async def test_get_stats_empty(self, vector_store: PostgresVectorStore):
         """Test get_stats on empty database."""
         stats = await vector_store.get_stats()
@@ -77,12 +98,13 @@ class TestPostgresVectorStore:
     async def test_add_and_search_chunks(
         self,
         vector_store: PostgresVectorStore,
+        sample_paper: Paper,
         sample_chunks: list[Chunk],
         sample_embeddings: list[list[float]],
     ):
         """Test adding chunks and searching for them."""
         # Add chunks
-        await vector_store.add_chunks(sample_chunks, sample_embeddings)
+        await vector_store.add_chunks(sample_paper, sample_chunks, sample_embeddings)
 
         # Search with similar embedding
         query_embedding = [0.15] * 384
@@ -97,9 +119,39 @@ class TestPostgresVectorStore:
         # Cleanup
         await vector_store.delete_paper(sample_chunks[0].paper_id)
 
+    async def test_paper_metadata_is_persisted(
+        self,
+        vector_store: PostgresVectorStore,
+        sample_paper_and_chunks,
+        sample_embeddings: list[list[float]],
+    ):
+        """Authors, abstract, and links must survive ingestion.
+
+        These used to be read out of the first chunk's free-form metadata dict,
+        which the ingestion service never populated with them, so every stored
+        paper had empty authors, abstract, url, and pdf_url in production while
+        the adapter's own tests passed by setting those keys by hand.
+        """
+        paper, chunks = sample_paper_and_chunks
+        await vector_store.add_chunks(paper, chunks, sample_embeddings)
+
+        try:
+            stored = [
+                p for p in await vector_store.list_papers() if p["arxiv_id"] == paper.arxiv_id
+            ]
+            assert len(stored) == 1
+            assert stored[0]["title"] == paper.title
+            assert stored[0]["authors"] == paper.authors
+            assert stored[0]["abstract"] == paper.abstract
+            assert stored[0]["url"] == paper.url
+            assert stored[0]["pdf_url"] == paper.pdf_url
+        finally:
+            await vector_store.delete_paper(paper.id)
+
     async def test_reingesting_same_arxiv_id_does_not_crash(
         self,
         vector_store: PostgresVectorStore,
+        sample_paper: Paper,
         sample_chunks: list[Chunk],
         sample_embeddings: list[list[float]],
     ):
@@ -111,7 +163,7 @@ class TestPostgresVectorStore:
         arxiv_id UNIQUE constraint fired and asyncpg raised UniqueViolationError.
         """
         arxiv_id = sample_chunks[0].metadata["arxiv_id"]
-        await vector_store.add_chunks(sample_chunks, sample_embeddings)
+        await vector_store.add_chunks(sample_paper, sample_chunks, sample_embeddings)
 
         # Simulate a second fetch of the same paper: new paper_id + chunk ids,
         # same arxiv_id, and updated content.
@@ -127,7 +179,8 @@ class TestPostgresVectorStore:
             )
             for i in range(3)
         ]
-        await vector_store.add_chunks(refetched, sample_embeddings)
+        refetched_paper = sample_paper.model_copy(update={"id": second_paper_id})
+        await vector_store.add_chunks(refetched_paper, refetched, sample_embeddings)
 
         try:
             papers = [p for p in await vector_store.list_papers() if p["arxiv_id"] == arxiv_id]
@@ -144,12 +197,13 @@ class TestPostgresVectorStore:
     async def test_reingesting_fewer_chunks_leaves_no_stale_rows(
         self,
         vector_store: PostgresVectorStore,
+        sample_paper: Paper,
         sample_chunks: list[Chunk],
         sample_embeddings: list[list[float]],
     ):
         """A paper re-chunked into fewer pieces must not keep its old tail chunks."""
         arxiv_id = sample_chunks[0].metadata["arxiv_id"]
-        await vector_store.add_chunks(sample_chunks, sample_embeddings)
+        await vector_store.add_chunks(sample_paper, sample_chunks, sample_embeddings)
 
         shrunk = [
             Chunk(
@@ -161,7 +215,8 @@ class TestPostgresVectorStore:
                 metadata={"paper_title": "Test Paper on ML", "arxiv_id": arxiv_id},
             )
         ]
-        await vector_store.add_chunks(shrunk, sample_embeddings[:1])
+        shrunk_paper = sample_paper.model_copy(update={"id": shrunk[0].paper_id})
+        await vector_store.add_chunks(shrunk_paper, shrunk, sample_embeddings[:1])
 
         try:
             papers = [p for p in await vector_store.list_papers() if p["arxiv_id"] == arxiv_id]
@@ -173,6 +228,7 @@ class TestPostgresVectorStore:
     async def test_failed_chunk_write_leaves_no_orphan_paper(
         self,
         vector_store: PostgresVectorStore,
+        sample_paper: Paper,
         sample_chunks: list[Chunk],
     ):
         """A failure during chunk insert must roll back the paper row too.
@@ -185,7 +241,7 @@ class TestPostgresVectorStore:
         bad_embeddings = [[0.1] * 5 for _ in sample_chunks]
 
         with pytest.raises(asyncpg.PostgresError):
-            await vector_store.add_chunks(sample_chunks, bad_embeddings)
+            await vector_store.add_chunks(sample_paper, sample_chunks, bad_embeddings)
 
         papers = [p for p in await vector_store.list_papers() if p["arxiv_id"] == arxiv_id]
         assert papers == [], "paper row must not survive a failed chunk write"
@@ -193,12 +249,13 @@ class TestPostgresVectorStore:
     async def test_delete_paper(
         self,
         vector_store: PostgresVectorStore,
+        sample_paper: Paper,
         sample_chunks: list[Chunk],
         sample_embeddings: list[list[float]],
     ):
         """Test deleting a paper and its chunks."""
         # Add chunks
-        await vector_store.add_chunks(sample_chunks, sample_embeddings)
+        await vector_store.add_chunks(sample_paper, sample_chunks, sample_embeddings)
         paper_id = sample_chunks[0].paper_id
 
         # Verify paper exists
@@ -218,12 +275,13 @@ class TestPostgresVectorStore:
     async def test_search_with_paper_filter(
         self,
         vector_store: PostgresVectorStore,
+        sample_paper: Paper,
         sample_chunks: list[Chunk],
         sample_embeddings: list[list[float]],
     ):
         """Test searching with paper_id filter."""
         # Add chunks
-        await vector_store.add_chunks(sample_chunks, sample_embeddings)
+        await vector_store.add_chunks(sample_paper, sample_chunks, sample_embeddings)
         paper_id = sample_chunks[0].paper_id
 
         # Search with filter
@@ -240,12 +298,13 @@ class TestPostgresVectorStore:
     async def test_get_paper_embeddings(
         self,
         vector_store: PostgresVectorStore,
+        sample_paper: Paper,
         sample_chunks: list[Chunk],
         sample_embeddings: list[list[float]],
     ):
         """Test getting mean embeddings per paper."""
         # Add chunks
-        await vector_store.add_chunks(sample_chunks, sample_embeddings)
+        await vector_store.add_chunks(sample_paper, sample_chunks, sample_embeddings)
         paper_id = sample_chunks[0].paper_id
 
         # Get embeddings
@@ -280,11 +339,23 @@ class TestQueryServiceAgainstPostgres:
 
     @pytest.fixture
     def two_papers(self) -> tuple[list[Chunk], list[list[float]]]:
-        """Chunks from two distinct papers, so scoping is observable."""
+        """Two distinct papers with their chunks, so scoping is observable."""
+        papers: list[Paper] = []
         chunks: list[Chunk] = []
         for paper_index in range(2):
             paper_id = str(uuid.uuid4())
             arxiv_id = f"test.{uuid.uuid4().hex[:8]}"
+            papers.append(
+                Paper(
+                    id=paper_id,
+                    arxiv_id=arxiv_id,
+                    title=f"Test Paper {paper_index}",
+                    authors=["Author One"],
+                    abstract="Abstract.",
+                    url=f"https://arxiv.org/abs/{arxiv_id}",
+                    pdf_url=f"https://arxiv.org/pdf/{arxiv_id}.pdf",
+                )
+            )
             chunks.extend(
                 Chunk(
                     id=str(uuid.uuid4()),
@@ -297,7 +368,7 @@ class TestQueryServiceAgainstPostgres:
                 for i in range(2)
             )
         embeddings = [[0.1 * (i + 1)] * 384 for i in range(len(chunks))]
-        return chunks, embeddings
+        return papers, chunks, embeddings
 
     async def _make_service(self, vector_store: PostgresVectorStore) -> QueryService:
         from tests.conftest import MockEmbeddingPort, MockFaithfulnessPort, MockLLMPort
@@ -312,7 +383,7 @@ class TestQueryServiceAgainstPostgres:
     async def test_query_scoped_to_paper_ids_hits_the_real_adapter(
         self,
         vector_store: PostgresVectorStore,
-        two_papers: tuple[list[Chunk], list[list[float]]],
+        two_papers: tuple[list[Paper], list[Chunk], list[list[float]]],
     ):
         """A paper-scoped query must reach Postgres and exclude other papers.
 
@@ -320,13 +391,13 @@ class TestQueryServiceAgainstPostgres:
         which asyncpg cannot bind to $2::uuid[], so every scoped query raised
         DataError and surfaced as HTTP 500.
         """
-        chunks, embeddings = two_papers
+        papers, chunks, embeddings = two_papers
         wanted_paper = chunks[0].paper_id
         other_paper = chunks[-1].paper_id
         assert wanted_paper != other_paper
 
-        await vector_store.add_chunks(chunks[:2], embeddings[:2])
-        await vector_store.add_chunks(chunks[2:], embeddings[2:])
+        await vector_store.add_chunks(papers[0], chunks[:2], embeddings[:2])
+        await vector_store.add_chunks(papers[1], chunks[2:], embeddings[2:])
         try:
             service = await self._make_service(vector_store)
             response = await service.query(
@@ -342,15 +413,15 @@ class TestQueryServiceAgainstPostgres:
     async def test_query_without_scope_reaches_multiple_papers(
         self,
         vector_store: PostgresVectorStore,
-        two_papers: tuple[list[Chunk], list[list[float]]],
+        two_papers: tuple[list[Paper], list[Chunk], list[list[float]]],
     ):
         """An unscoped query must not be restricted to a single paper."""
-        chunks, embeddings = two_papers
+        papers, chunks, embeddings = two_papers
         first_paper = chunks[0].paper_id
         second_paper = chunks[-1].paper_id
 
-        await vector_store.add_chunks(chunks[:2], embeddings[:2])
-        await vector_store.add_chunks(chunks[2:], embeddings[2:])
+        await vector_store.add_chunks(papers[0], chunks[:2], embeddings[:2])
+        await vector_store.add_chunks(papers[1], chunks[2:], embeddings[2:])
         try:
             service = await self._make_service(vector_store)
             response = await service.query(

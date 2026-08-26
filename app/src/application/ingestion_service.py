@@ -101,7 +101,8 @@ class IngestionService:
                     error="No chunks extracted from PDF",
                 )
 
-            # Add paper metadata to chunks
+            # Denormalized onto each chunk so retrieval can cite the source
+            # without a join; the store receives the full Paper separately.
             for chunk in chunks:
                 chunk.metadata["arxiv_id"] = paper.arxiv_id
                 chunk.metadata["paper_title"] = paper.title
@@ -113,7 +114,7 @@ class IngestionService:
 
             # Store in vector database
             logger.info(f"Storing {len(chunks)} chunks in vector store")
-            await self._vector_store.add_chunks(chunks, embeddings)
+            await self._vector_store.add_chunks(paper, chunks, embeddings)
 
             # Update paper chunk count
             paper.chunk_count = len(chunks)

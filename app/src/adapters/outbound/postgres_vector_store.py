@@ -10,6 +10,7 @@ import numpy as np
 from pgvector.asyncpg import register_vector
 
 from src.domain.entities.chunk import Chunk
+from src.domain.entities.paper import Paper
 from src.domain.ports.vector_store import VectorStorePort
 
 logger = logging.getLogger(__name__)
@@ -91,8 +92,10 @@ class PostgresVectorStore(VectorStorePort):
             self._pool = None
             logger.info("PostgreSQL connection pool closed")
 
-    async def add_chunks(self, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
-        """Store chunks with their corresponding embeddings.
+    async def add_chunks(
+        self, paper: Paper, chunks: list[Chunk], embeddings: list[list[float]]
+    ) -> None:
+        """Store a paper together with its chunks and their embeddings.
 
         The paper is keyed by its arxiv_id (a UNIQUE column), not by the
         per-fetch Paper.id the source mints, so re-ingesting a paper updates
@@ -106,15 +109,14 @@ class PostgresVectorStore(VectorStorePort):
 
         pool = await self._get_pool()
 
-        # Paper-level metadata is carried on the first chunk (sanitize all text).
-        first_chunk = chunks[0]
-        paper_title = _sanitize_text(first_chunk.metadata.get("paper_title", ""))
-        arxiv_id = _sanitize_text(first_chunk.metadata.get("arxiv_id", ""))
-        url = _sanitize_text(first_chunk.metadata.get("url", ""))
-        pdf_url = _sanitize_text(first_chunk.metadata.get("pdf_url", ""))
-        authors = first_chunk.metadata.get("authors", [])
-        authors = [_sanitize_text(a) for a in authors] if isinstance(authors, list) else []
-        abstract = _sanitize_text(first_chunk.metadata.get("abstract", ""))
+        # Sanitize every text field: PDF extraction can emit null bytes, which
+        # PostgreSQL text columns reject.
+        paper_title = _sanitize_text(paper.title)
+        arxiv_id = _sanitize_text(paper.arxiv_id)
+        url = _sanitize_text(paper.url)
+        pdf_url = _sanitize_text(paper.pdf_url)
+        authors = [_sanitize_text(a) for a in paper.authors]
+        abstract = _sanitize_text(paper.abstract)
 
         async with pool.acquire() as conn, conn.transaction():
             # Reuse the existing row's id when this arxiv_id was already
@@ -131,7 +133,7 @@ class PostgresVectorStore(VectorStorePort):
                     pdf_url = EXCLUDED.pdf_url
                 RETURNING id
                 """,
-                first_chunk.paper_id,
+                paper.id,
                 arxiv_id,
                 paper_title,
                 authors,

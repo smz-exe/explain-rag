@@ -1,16 +1,24 @@
 from abc import ABC, abstractmethod
 
 from src.domain.entities.chunk import Chunk
+from src.domain.entities.paper import Paper
 
 
 class VectorStorePort(ABC):
     """Abstract interface for vector storage and retrieval operations."""
 
     @abstractmethod
-    async def add_chunks(self, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
-        """Store chunks with their corresponding embeddings.
+    async def add_chunks(
+        self, paper: Paper, chunks: list[Chunk], embeddings: list[list[float]]
+    ) -> None:
+        """Store a paper together with its chunks and their embeddings.
+
+        The paper is passed explicitly rather than reconstructed from chunk
+        metadata: an implementation must not have to guess which free-form
+        metadata keys carry paper-level fields.
 
         Args:
+            paper: The paper these chunks belong to.
             chunks: List of Chunk entities to store.
             embeddings: List of embedding vectors, one per chunk.
         """

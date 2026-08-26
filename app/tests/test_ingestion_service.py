@@ -65,10 +65,14 @@ class RecordingVectorStore(VectorStorePort):
     """Vector store fake that records add_chunks calls."""
 
     def __init__(self):
+        self.added_papers: list[Paper] = []
         self.added_chunks: list[Chunk] = []
         self.added_embeddings: list[list[float]] = []
 
-    async def add_chunks(self, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
+    async def add_chunks(
+        self, paper: Paper, chunks: list[Chunk], embeddings: list[list[float]]
+    ) -> None:
+        self.added_papers.append(paper)
         self.added_chunks.extend(chunks)
         self.added_embeddings.extend(embeddings)
 
@@ -132,6 +136,26 @@ class TestIngestPaper:
         for chunk in vector_store.added_chunks:
             assert chunk.metadata["arxiv_id"] == sample_paper.arxiv_id
             assert chunk.metadata["paper_title"] == sample_paper.title
+
+    async def test_paper_metadata_reaches_the_store(
+        self, sample_paper, sample_chunks, vector_store
+    ):
+        """The store needs the whole Paper, not two keys smuggled via chunk metadata.
+
+        Only arxiv_id and paper_title were ever attached to chunks, so authors,
+        abstract, url, and pdf_url were silently dropped for every paper.
+        """
+        source = FakePaperSource(sample_paper, sample_chunks)
+        service = make_service(source, vector_store)
+
+        await service.ingest_paper(sample_paper.arxiv_id)
+
+        assert vector_store.added_papers == [sample_paper]
+        stored = vector_store.added_papers[0]
+        assert stored.authors == sample_paper.authors
+        assert stored.abstract == sample_paper.abstract
+        assert stored.url == sample_paper.url
+        assert stored.pdf_url == sample_paper.pdf_url
 
     async def test_empty_chunks_returns_error(self, sample_paper, vector_store):
         source = FakePaperSource(sample_paper, chunks=[])

@@ -122,15 +122,16 @@ class TestVectorStoreManagement:
     """Test vector store management operations."""
 
     @pytest.mark.asyncio
-    async def test_add_chunks(self, sample_chunks):
-        """Test adding chunks to vector store."""
+    async def test_add_chunks(self, sample_paper, sample_chunks):
+        """Test adding a paper and its chunks to the vector store."""
         vector_store = MockVectorStorePort()
 
         embeddings = [[0.1] * 384 for _ in sample_chunks]
-        await vector_store.add_chunks(sample_chunks, embeddings)
+        await vector_store.add_chunks(sample_paper, sample_chunks, embeddings)
 
         assert len(vector_store.chunks) == 3
         assert len(vector_store.added_chunks) == 3
+        assert vector_store.added_papers == [sample_paper]
 
     @pytest.mark.asyncio
     async def test_get_stats(self, sample_chunks):
