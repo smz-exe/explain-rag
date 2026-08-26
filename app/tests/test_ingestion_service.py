@@ -87,8 +87,8 @@ class RecordingVectorStore(VectorStorePort):
     async def list_papers(self) -> list[dict]:
         return []
 
-    async def delete_paper(self, paper_id: str) -> int:
-        return 0
+    async def delete_paper(self, paper_id: str) -> int | None:
+        return None
 
     async def get_paper_embeddings(self) -> list[tuple[str, list[float]]]:
         return []

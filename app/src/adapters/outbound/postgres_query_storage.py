@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import uuid
 from datetime import UTC, datetime
 
 import asyncpg
@@ -13,6 +14,15 @@ from src.domain.entities.query import QueryResponse
 from src.domain.ports.query_storage import QueryStoragePort
 
 logger = logging.getLogger(__name__)
+
+
+def _is_uuid(value: str) -> bool:
+    """Whether a value can be bound to a uuid column at all."""
+    try:
+        uuid.UUID(str(value))
+    except (ValueError, AttributeError, TypeError):
+        return False
+    return True
 
 
 class PostgresQueryStorage(QueryStoragePort):
@@ -127,6 +137,11 @@ class PostgresQueryStorage(QueryStoragePort):
 
     async def get(self, query_id: str) -> QueryResponse | None:
         """Retrieve a query response by ID."""
+        if not _is_uuid(query_id):
+            # A malformed id cannot match a uuid column; binding it would raise
+            # asyncpg.DataError and surface as a 500 rather than a 404.
+            return None
+
         pool = await self._get_pool()
 
         async with pool.acquire() as conn:
@@ -225,6 +240,9 @@ class PostgresQueryStorage(QueryStoragePort):
 
     async def delete(self, query_id: str) -> bool:
         """Delete a query from storage."""
+        if not _is_uuid(query_id):
+            return False
+
         pool = await self._get_pool()
 
         async with pool.acquire() as conn:

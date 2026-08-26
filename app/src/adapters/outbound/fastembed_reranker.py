@@ -1,7 +1,6 @@
 """Cross-encoder reranker adapter using FastEmbed (ONNX-based)."""
 
 import asyncio
-import os
 
 from fastembed.rerank.cross_encoder import TextCrossEncoder
 
@@ -24,7 +23,7 @@ class FastEmbedReranker(RerankerPort):
             cache_dir: Directory to cache downloaded models.
         """
         self._model_name = model_name
-        self._cache_dir = cache_dir or os.getenv("HF_HOME", None)
+        self._cache_dir = cache_dir
         self._model: TextCrossEncoder | None = None
 
     @property

@@ -35,25 +35,23 @@ class TestDeletePaperEndpoint:
         assert len(mock_store.chunks) == 0
 
     @pytest.mark.asyncio
-    async def test_delete_paper_idempotent(self, sample_chunks):
-        """Test that deleting twice returns 0 on second attempt."""
+    async def test_delete_paper_is_idempotent_and_reports_absence(self, sample_chunks):
+        """Deleting twice: chunks removed, then "no such paper".
+
+        0 and None are different answers — 0 means the paper existed and had no
+        chunks, which used to be indistinguishable from not finding it at all.
+        """
         mock_store = MockVectorStorePort(chunks=sample_chunks)
 
-        # First deletion
-        first_count = await mock_store.delete_paper("paper-001")
-        assert first_count == 3
-
-        # Second deletion (should return 0)
-        second_count = await mock_store.delete_paper("paper-001")
-        assert second_count == 0
+        assert await mock_store.delete_paper("paper-001") == 3
+        assert await mock_store.delete_paper("paper-001") is None
 
     @pytest.mark.asyncio
     async def test_delete_paper_not_found(self, sample_chunks):
-        """Test deleting a non-existent paper returns 0."""
+        """Deleting an unknown paper reports absence, not an empty deletion."""
         mock_store = MockVectorStorePort(chunks=sample_chunks)
 
-        deleted_count = await mock_store.delete_paper("nonexistent-paper")
-        assert deleted_count == 0
+        assert await mock_store.delete_paper("nonexistent-paper") is None
         # Original chunks should remain
         assert len(mock_store.chunks) == 3
 

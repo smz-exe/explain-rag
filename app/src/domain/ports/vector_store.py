@@ -64,14 +64,16 @@ class VectorStorePort(ABC):
         ...
 
     @abstractmethod
-    async def delete_paper(self, paper_id: str) -> int:
-        """Delete all chunks for a given paper.
+    async def delete_paper(self, paper_id: str) -> int | None:
+        """Delete a paper and its chunks.
 
         Args:
-            paper_id: The paper ID to delete chunks for.
+            paper_id: The paper ID to delete.
 
         Returns:
-            Number of chunks deleted.
+            Number of chunks deleted, or None if no such paper existed. A
+            deleted paper that happened to have no chunks returns 0, which is
+            not the same answer as "not found".
         """
         ...
 

@@ -19,6 +19,7 @@ from src.adapters.outbound.anthropic_evaluator import AnthropicEvaluator
 from src.adapters.outbound.anthropic_faithfulness import AnthropicFaithfulness
 from src.adapters.outbound.anthropic_rag import AnthropicRAG
 from src.adapters.outbound.arxiv_client import ArxivPaperSource
+from src.adapters.outbound.env_user_storage import EnvUserStorage
 from src.adapters.outbound.fastembed_embedding import FastEmbedEmbedding
 from src.adapters.outbound.fastembed_reranker import FastEmbedReranker
 from src.adapters.outbound.postgres_query_storage import PostgresQueryStorage
@@ -30,6 +31,7 @@ from src.domain.ports.llm import LLMPort
 from src.domain.ports.paper_source import PaperSourcePort
 from src.domain.ports.query_storage import QueryStoragePort
 from src.domain.ports.reranker import RerankerPort
+from src.domain.ports.user_storage import UserStoragePort
 from src.domain.ports.vector_store import VectorStorePort
 from tests.conftest import (
     MockEmbeddingPort,
@@ -82,11 +84,16 @@ def test_implementations_match_the_port_signature(port, adapter, fake, method):
     )
 
 
-def test_paper_source_matches_its_port():
-    """ArxivPaperSource has no fake counterpart, so it is checked on its own."""
-    for method in _abstract_methods(PaperSourcePort):
-        assert _parameters(getattr(ArxivPaperSource, method)) == _parameters(
-            getattr(PaperSourcePort, method)
+@pytest.mark.parametrize(
+    ("port", "adapter"),
+    [(PaperSourcePort, ArxivPaperSource), (UserStoragePort, EnvUserStorage)],
+    ids=["PaperSourcePort", "UserStoragePort"],
+)
+def test_adapters_without_a_fake_match_their_port(port, adapter):
+    """These ports have no test double, so the adapter is checked on its own."""
+    for method in _abstract_methods(port):
+        assert _parameters(getattr(adapter, method)) == _parameters(getattr(port, method)), (
+            f"{adapter.__name__}.{method} does not match {port.__name__}"
         )
 
 

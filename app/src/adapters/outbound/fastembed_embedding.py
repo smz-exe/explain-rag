@@ -1,7 +1,6 @@
 """Embedding adapter using FastEmbed (ONNX-based, lightweight alternative to sentence-transformers)."""
 
 import asyncio
-import os
 
 from fastembed import TextEmbedding
 
@@ -23,7 +22,7 @@ class FastEmbedEmbedding(EmbeddingPort):
             cache_dir: Directory to cache downloaded models.
         """
         self._model_name = model_name
-        self._cache_dir = cache_dir or os.getenv("HF_HOME", None)
+        self._cache_dir = cache_dir
         self._model: TextEmbedding | None = None
 
     @property

@@ -163,6 +163,45 @@ class TestAuthWithConfiguredPassword:
         assert (await configured_client.get("/stats")).status_code == 401
 
 
+class TestLoginTimingSideChannel:
+    """Login must not reveal whether a username exists."""
+
+    @pytest.mark.asyncio
+    async def test_unknown_username_still_runs_a_password_comparison(self, client, monkeypatch):
+        """An early return for unknown users leaks their existence via latency.
+
+        Rather than timing the request (flaky under CI load), assert the
+        mechanism: a bcrypt comparison happens on both branches.
+        """
+        from src.adapters.outbound import env_user_storage
+
+        comparisons: list[bytes] = []
+        real_checkpw = env_user_storage.bcrypt.checkpw
+
+        def counting_checkpw(password: bytes, hashed: bytes) -> bool:
+            comparisons.append(hashed)
+            return real_checkpw(password, hashed)
+
+        monkeypatch.setattr(env_user_storage.bcrypt, "checkpw", counting_checkpw)
+
+        known = await client.post(
+            "/auth/login", json={"username": "admin", "password": "wrong-password"}
+        )
+        after_known = len(comparisons)
+
+        unknown = await client.post(
+            "/auth/login", json={"username": "nobody-here", "password": "wrong-password"}
+        )
+
+        assert known.status_code == 401
+        assert unknown.status_code == 401
+        assert unknown.json() == known.json(), "responses must be indistinguishable"
+        assert len(comparisons) > after_known, (
+            "no password comparison ran for the unknown user, so the two branches "
+            "take measurably different time"
+        )
+
+
 class TestTokenRejectionPaths:
     """Every way a token can be unusable must be rejected.
 

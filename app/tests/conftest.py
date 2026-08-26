@@ -256,8 +256,11 @@ class MockVectorStorePort(VectorStorePort):
         """Return mock paper list."""
         return [{"paper_id": "paper-001", "title": "Test Paper", "chunk_count": 3}]
 
-    async def delete_paper(self, paper_id: str) -> int:
-        """Delete chunks for a paper."""
+    async def delete_paper(self, paper_id: str) -> int | None:
+        """Delete chunks for a paper, or None when it is unknown."""
+        known = {c.paper_id for c in self.chunks} | {p.id for p in self.added_papers}
+        if paper_id not in known:
+            return None
         original_count = len(self.chunks)
         self.chunks = [c for c in self.chunks if c.paper_id != paper_id]
         return original_count - len(self.chunks)

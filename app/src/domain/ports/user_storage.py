@@ -30,6 +30,24 @@ class UserStoragePort(ABC):
         ...
 
     @abstractmethod
+    async def authenticate(self, username: str, password: str) -> User | None:
+        """Check a username and password together.
+
+        Exists as one operation so implementations can guarantee that an
+        unknown username costs the same as a known one. Looking the user up and
+        verifying separately invites an early return that turns response
+        latency into a username oracle.
+
+        Args:
+            username: The submitted username.
+            password: The submitted plain text password.
+
+        Returns:
+            The authenticated User, or None if the credentials are not valid.
+        """
+        ...
+
+    @abstractmethod
     async def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Verify a password against a hash.
 

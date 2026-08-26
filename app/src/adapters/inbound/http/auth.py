@@ -132,12 +132,12 @@ def create_router(user_storage: UserStoragePort, settings: Settings) -> APIRoute
     )
     async def login(request: LoginRequest, response: Response) -> LoginResponse:
         """Authenticate user and set JWT cookie."""
-        user = await user_storage.get_user_by_username(request.username)
+        # One port call rather than lookup-then-verify: the adapter guarantees
+        # an unknown username costs the same as a wrong password, so response
+        # latency cannot be used to enumerate valid usernames.
+        user = await user_storage.authenticate(request.username, request.password)
 
         if not user:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-
-        if not await user_storage.verify_password(request.password, user.hashed_password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         # Create JWT token

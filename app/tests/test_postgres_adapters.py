@@ -246,6 +246,36 @@ class TestPostgresVectorStore:
         papers = [p for p in await vector_store.list_papers() if p["arxiv_id"] == arxiv_id]
         assert papers == [], "paper row must not survive a failed chunk write"
 
+    async def test_malformed_paper_id_is_not_found_rather_than_an_error(
+        self, vector_store: PostgresVectorStore
+    ):
+        """IDs arrive as path strings; a non-uuid cannot exist, it is not a crash.
+
+        Binding one to a uuid column raises asyncpg.DataError, which surfaced
+        as a 500 instead of a 404.
+        """
+        assert await vector_store.delete_paper("not-a-uuid") is None
+        assert await vector_store.search([0.1] * 384, top_k=5, paper_ids=["not-a-uuid"]) == []
+
+    async def test_deleting_a_paper_with_no_chunks_reports_it_was_deleted(
+        self, vector_store: PostgresVectorStore, sample_paper: Paper, sample_chunks: list[Chunk]
+    ):
+        """Chunk count is not an existence check.
+
+        delete_paper returned the pre-delete chunk count, so a paper with zero
+        chunks was actually deleted while the API reported 404.
+        """
+        await vector_store.add_chunks(sample_paper, sample_chunks[:1], [[0.1] * 384])
+        # Remove its chunks but leave the paper row in place.
+        pool = await vector_store._get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM chunks WHERE paper_id = $1", sample_paper.id)
+
+        deleted = await vector_store.delete_paper(sample_paper.id)
+
+        assert deleted == 0, "the paper existed and had no chunks"
+        assert await vector_store.delete_paper(sample_paper.id) is None, "now it is gone"
+
     async def test_delete_paper(
         self,
         vector_store: PostgresVectorStore,

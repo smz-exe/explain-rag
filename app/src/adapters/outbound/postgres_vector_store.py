@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import uuid
 from collections import defaultdict
 
 import asyncpg
@@ -14,6 +15,23 @@ from src.domain.entities.paper import Paper
 from src.domain.ports.vector_store import VectorStorePort
 
 logger = logging.getLogger(__name__)
+
+
+def _valid_uuids(candidates: list[str]) -> list[str]:
+    """Keep only well-formed UUIDs.
+
+    IDs reach the store as path-parameter strings. Binding a malformed one to a
+    uuid column raises asyncpg.DataError, which surfaced as a 500; an id that
+    cannot be a UUID simply cannot match a row.
+    """
+    valid = []
+    for candidate in candidates:
+        try:
+            uuid.UUID(str(candidate))
+        except (ValueError, AttributeError, TypeError):
+            continue
+        valid.append(candidate)
+    return valid
 
 
 def _sanitize_text(text: str | None) -> str:
@@ -193,8 +211,13 @@ class PostgresVectorStore(VectorStorePort):
 
         embedding_vector = np.array(query_embedding, dtype=np.float32)
 
+        scoped_ids = _valid_uuids(paper_ids) if paper_ids else None
+        if paper_ids and not scoped_ids:
+            # Every requested id was malformed, so nothing can match.
+            return []
+
         async with pool.acquire() as conn:
-            if paper_ids:
+            if scoped_ids:
                 rows = await conn.fetch(
                     """
                     SELECT
@@ -208,7 +231,7 @@ class PostgresVectorStore(VectorStorePort):
                     LIMIT $3
                     """,
                     embedding_vector,
-                    paper_ids,
+                    scoped_ids,
                     top_k,
                 )
             else:
@@ -304,19 +327,28 @@ class PostgresVectorStore(VectorStorePort):
             for row in rows
         ]
 
-    async def delete_paper(self, paper_id: str) -> int:
-        """Delete all chunks for a given paper."""
+    async def delete_paper(self, paper_id: str) -> int | None:
+        """Delete a paper and its chunks, reporting whether it existed."""
+        if not _valid_uuids([paper_id]):
+            return None
+
         pool = await self._get_pool()
 
-        async with pool.acquire() as conn:
-            # Get count before delete
+        # One transaction: the count and the delete must describe the same
+        # state, and the DELETE is what proves the paper existed. Using the
+        # chunk count as an existence proxy deleted zero-chunk papers while
+        # telling the caller they were not found.
+        async with pool.acquire() as conn, conn.transaction():
             count = await conn.fetchval(
                 "SELECT COUNT(*) FROM chunks WHERE paper_id = $1",
                 paper_id,
             )
+            deleted_id = await conn.fetchval(
+                "DELETE FROM papers WHERE id = $1 RETURNING id", paper_id
+            )
 
-            # Delete paper (chunks will be cascade deleted)
-            await conn.execute("DELETE FROM papers WHERE id = $1", paper_id)
+        if deleted_id is None:
+            return None
 
         logger.debug(f"Deleted paper {paper_id} with {count} chunks")
         return count or 0

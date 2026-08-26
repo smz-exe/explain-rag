@@ -110,6 +110,7 @@ def create_app(
         logger.info(f"Initializing embedding adapter: {settings.embedding_model}")
         embedding = FastEmbedEmbedding(
             model_name=settings.embedding_model,
+            cache_dir=settings.model_cache_dir,
         )
 
     if vector_store is None:
@@ -153,6 +154,7 @@ def create_app(
         logger.info(f"Initializing reranker: {settings.reranker_model}")
         reranker = FastEmbedReranker(
             model_name=settings.reranker_model,
+            cache_dir=settings.model_cache_dir,
         )
 
     if query_storage is None:

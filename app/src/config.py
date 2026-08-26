@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     preload_models: bool = True  # Preload models at startup to avoid cold start
     hf_offline_mode: bool = False  # Use only locally cached HuggingFace models
     hf_token: SecretStr = SecretStr("")  # HuggingFace token for higher rate limits
+    # Where FastEmbed caches downloaded models. Defaults to the library's own
+    # location; the Dockerfile points HF_HOME at the mounted volume.
+    model_cache_dir: str | None = None
 
     # Visualization Configuration (UMAP)
     umap_n_neighbors: int = 15  # Number of neighbors for UMAP
