@@ -125,12 +125,44 @@ class AnthropicFaithfulness(FaithfulnessPort):
         content = await self._complete(DECOMPOSE_PROMPT.format(answer=answer))
 
         try:
-            claims = parse_json_response(content)
-            return claims if isinstance(claims, list) else []
+            parsed = parse_json_response(content)
         except json.JSONDecodeError:
             logger.warning(f"Failed to parse claims JSON: {content}")
-            # Fallback: split by sentences
-            return [s.strip() for s in re.split(r"(?<=[.!?])\s+", answer) if s.strip()]
+            return self._sentences(answer)
+
+        claims = self._coerce_claims(parsed)
+        if not claims:
+            logger.warning(f"Claims payload had no usable strings: {content}")
+            return self._sentences(answer)
+        return claims
+
+    @staticmethod
+    def _coerce_claims(parsed: object) -> list[str]:
+        """Extract claim strings, tolerating the shapes models actually emit.
+
+        Validating only the container let a list of objects through, so
+        downstream code received dicts where it expected claim text.
+        """
+        if not isinstance(parsed, list):
+            return []
+
+        claims: list[str] = []
+        for item in parsed:
+            if isinstance(item, str) and item.strip():
+                claims.append(item.strip())
+            elif isinstance(item, dict):
+                # e.g. [{"claim": "..."}] or [{"text": "..."}]
+                for key in ("claim", "text", "statement"):
+                    value = item.get(key)
+                    if isinstance(value, str) and value.strip():
+                        claims.append(value.strip())
+                        break
+        return claims
+
+    @staticmethod
+    def _sentences(answer: str) -> list[str]:
+        """Fallback decomposition: one claim per sentence."""
+        return [s.strip() for s in re.split(r"(?<=[.!?])\s+", answer) if s.strip()]
 
     async def _verify_claims_batch(
         self, claims: list[str], chunks: list[Chunk]

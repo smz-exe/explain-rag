@@ -123,6 +123,17 @@ class Settings(BaseSettings):
                 "For local development, run 'supabase start' and use the local URL."
             )
 
+        # Validate chunking settings. The chunker may pull a chunk boundary
+        # back to as early as start + chunk_size // 2 to land on a sentence
+        # end; an overlap at least that large leaves the next start at or
+        # behind the current one, so chunking cannot advance normally.
+        if self.chunk_overlap >= self.chunk_size // 2:
+            raise ValueError(
+                f"CHUNK_OVERLAP ({self.chunk_overlap}) must be less than half of "
+                f"CHUNK_SIZE ({self.chunk_size}), otherwise chunking cannot make "
+                "reliable forward progress."
+            )
+
         # Validate admin password hash
         if not self.admin_password_hash.get_secret_value():
             raise ValueError(

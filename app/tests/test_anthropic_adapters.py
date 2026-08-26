@@ -213,13 +213,18 @@ class TestAnthropicEvaluator:
         assert "Reference answer (ground truth)" in prompt
         assert "reference_statements" in prompt
 
-    async def test_no_claims_means_perfect_faithfulness(self):
+    async def test_no_claims_is_an_evaluation_failure(self):
+        """A judge that returned nothing has not shown the answer is faithful.
+
+        This previously scored 1.0, making "the judge told us nothing"
+        indistinguishable from "every claim was supported" — and that perfect
+        score then entered the committed benchmark means.
+        """
         payload = self.verdict_payload(claims=[])
         evaluator, _ = self.make_evaluator([payload])
 
-        metrics = await evaluator.evaluate("Q?", "Answer.", ["ctx"])
-
-        assert metrics.faithfulness == 1.0
+        with pytest.raises(EvaluationError):
+            await evaluator.evaluate("Q?", "Answer.", ["ctx"])
 
     async def test_partial_relevance_maps_to_half(self):
         payload = self.verdict_payload(answer_relevance="partial")

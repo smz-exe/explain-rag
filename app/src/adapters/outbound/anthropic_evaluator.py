@@ -130,23 +130,30 @@ class AnthropicEvaluator(EvaluationPort):
                 messages=[{"role": "user", "content": prompt}],
             )
             verdict = parse_json_response(response_text(response))
+            # Inside the boundary: a malformed verdict is an evaluation failure,
+            # not an unhandled exception surfacing as a 500.
+            return self._compute_metrics(verdict, has_ground_truth=ground_truth is not None)
+        except EvaluationError:
+            raise
         except Exception as e:
             logger.error(f"Evaluation failed: {e}")
             raise EvaluationError(f"Evaluation failed: {e}") from e
-
-        return self._compute_metrics(verdict, has_ground_truth=ground_truth is not None)
 
     def _compute_metrics(self, verdict: dict, *, has_ground_truth: bool) -> EvaluationMetrics:
         """Turn the judge's per-item booleans into metric ratios."""
         if not isinstance(verdict, dict):
             raise EvaluationError(f"Judge returned non-object payload: {verdict!r}")
 
-        claims = [c for c in verdict.get("claims", []) if isinstance(c, dict)]
-        faithfulness = (
-            sum(1 for c in claims if c.get("supported_by_context") is True) / len(claims)
-            if claims
-            else 1.0
+        raw_claims = verdict.get("claims")
+        claims = (
+            [c for c in raw_claims if isinstance(c, dict)] if isinstance(raw_claims, list) else []
         )
+        if not claims:
+            # Scoring this 1.0 made "the judge told us nothing" indistinguishable
+            # from "every claim was supported", which then entered the published
+            # benchmark means as a perfect result.
+            raise EvaluationError(f"Judge returned no usable claims: {verdict!r}")
+        faithfulness = sum(1 for c in claims if c.get("supported_by_context") is True) / len(claims)
 
         relevance_scores = {"full": 1.0, "partial": 0.5, "none": 0.0}
         relevance = verdict.get("answer_relevance")

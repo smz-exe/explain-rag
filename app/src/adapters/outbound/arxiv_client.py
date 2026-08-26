@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import tempfile
 import uuid
 from pathlib import Path
@@ -57,10 +58,19 @@ class ArxivPaperSource(PaperSourcePort):
             response.raise_for_status()
             pdf_path.write_bytes(response.content)
 
+    @staticmethod
+    def _normalize_arxiv_id(arxiv_id: str) -> str:
+        """Strip a trailing version suffix, and only that.
+
+        Splitting on "v" truncates at the first 'v' anywhere in the string,
+        which corrupts old-style identifiers whose archive name contains one
+        (solv-int/9801001 becomes "sol").
+        """
+        return re.sub(r"v\d+$", "", arxiv_id.strip())
+
     async def fetch_by_id(self, arxiv_id: str) -> Paper:
         """Fetch paper metadata by arXiv ID."""
-        # Normalize arXiv ID (remove version suffix if present)
-        clean_id = arxiv_id.split("v")[0]
+        clean_id = self._normalize_arxiv_id(arxiv_id)
         logger.debug(f"Fetching paper metadata for: {arxiv_id}")
 
         search = arxiv.Search(id_list=[clean_id])
@@ -209,18 +219,20 @@ class ArxivPaperSource(PaperSourcePort):
                 chunks.append(chunk)
                 chunk_index += 1
 
-            # Move start position, accounting for overlap
-            start = end - chunk_overlap
-            if start >= len(text) or start < 0:
+            # Move start position, accounting for overlap. A sentence-boundary
+            # pullback can put end - chunk_overlap at or before the current
+            # start; without this floor the loop would break on the `start < 0`
+            # guard and silently drop the rest of the paper.
+            next_start = max(end - chunk_overlap, start + 1)
+            if next_start >= len(text):
                 break
+            start = next_start
 
         return chunks
 
     def _clean_text(self, text: str) -> str:
         """Clean extracted text."""
         # Replace multiple newlines with double newline
-        import re
-
         text = re.sub(r"\n{3,}", "\n\n", text)
         # Replace multiple spaces with single space
         text = re.sub(r" {2,}", " ", text)
