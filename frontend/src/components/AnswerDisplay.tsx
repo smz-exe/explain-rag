@@ -7,6 +7,8 @@ import type { Citation } from "@/api/model";
 
 interface AnswerDisplayProps {
   queryId?: string;
+  /** Capability token issued with the query; enables export when present */
+  shareToken?: string;
   question: string;
   answer: string;
   citations: Citation[];
@@ -15,6 +17,7 @@ interface AnswerDisplayProps {
 
 export function AnswerDisplay({
   queryId,
+  shareToken,
   question,
   answer,
   citations,
@@ -54,7 +57,9 @@ export function AnswerDisplay({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Answer</CardTitle>
-          {queryId && <ExportButton queryId={queryId} />}
+          {queryId && shareToken && (
+            <ExportButton queryId={queryId} shareToken={shareToken} />
+          )}
         </div>
         <p className="text-muted-foreground text-sm">{question}</p>
       </CardHeader>

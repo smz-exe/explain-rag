@@ -64,9 +64,13 @@ async def test_query_endpoint_validation(client):
 
 
 @pytest.mark.asyncio
-async def test_get_explanation_not_found(client):
-    """Test get explanation returns 404 for unknown query_id."""
-    response = await client.get("/query/nonexistent-id/explanation")
+async def test_get_explanation_not_found(authenticated_client):
+    """Test get explanation returns 404 for unknown query_id.
+
+    Uses an admin session: anonymous callers are rejected before the lookup, so
+    that path is covered in test_query_access.py instead.
+    """
+    response = await authenticated_client.get("/query/nonexistent-id/explanation")
     assert response.status_code == 404
 
 

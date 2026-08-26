@@ -29,6 +29,7 @@ import type {
   HTTPValidationError,
   ListQueriesQueryListGetParams,
   QueriesResponse,
+  QueryCreatedResponse,
   QueryRequest,
   QueryResponse
 } from '../../model';
@@ -56,7 +57,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 };
 
 export type queryQueryPostResponse200 = {
-  data: QueryResponse
+  data: QueryCreatedResponse
   status: 200
 }
 

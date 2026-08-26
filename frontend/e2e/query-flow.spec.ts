@@ -27,6 +27,9 @@ const mockClustersResponse = {
 
 const mockQueryResponse = {
   query_id: "test-uuid-123",
+  // Reading a stored query needs the capability token issued alongside it
+  share_token: "test-share-token",
+  faithfulness_status: "completed",
   question: "What is attention?",
   answer: "Attention is a mechanism [1] that allows models to focus [2].",
   citations: [
@@ -139,6 +142,66 @@ test.describe("Query Flow", () => {
 
     // Check timing
     await expect(page.getByText(/Timing/).first()).toBeVisible();
+  });
+
+  test("should download the export with its capability token", async ({
+    page,
+  }) => {
+    let exportAuthHeader: string | undefined;
+    await page.route("**/query/*/export", async (route) => {
+      exportAuthHeader = route.request().headers()["authorization"];
+      await route.fulfill({
+        status: 200,
+        contentType: "text/markdown; charset=utf-8",
+        headers: { "content-disposition": 'attachment; filename="query.md"' },
+        body: "# Query Export\n\n## Question\nWhat is attention?",
+      });
+    });
+
+    await page.goto("/");
+    await page.getByRole("textbox").first().fill("What is attention?");
+    await page.getByRole("button", { name: /ask/i }).first().click();
+    await expect(page.getByText("Answer", { exact: true }).first()).toBeVisible(
+      { timeout: 10000 }
+    );
+
+    const download = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: /export/i })
+      .first()
+      .click();
+    const file = await download;
+
+    expect(file.suggestedFilename()).toContain(".md");
+    // The token must travel in the header, never in the URL
+    expect(exportAuthHeader).toBe("Bearer test-share-token");
+    expect(page.url()).not.toContain("test-share-token");
+  });
+
+  test("should surface an expired export token instead of failing silently", async ({
+    page,
+  }) => {
+    await page.route("**/query/*/export", async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Access token expired" }),
+      });
+    });
+
+    await page.goto("/");
+    await page.getByRole("textbox").first().fill("What is attention?");
+    await page.getByRole("button", { name: /ask/i }).first().click();
+    await expect(page.getByText("Answer", { exact: true }).first()).toBeVisible(
+      { timeout: 10000 }
+    );
+
+    await page
+      .getByRole("button", { name: /export/i })
+      .first()
+      .click();
+
+    await expect(page.getByRole("alert").first()).toContainText(/expired/i);
   });
 
   test("should show loading state during query", async ({ page }) => {

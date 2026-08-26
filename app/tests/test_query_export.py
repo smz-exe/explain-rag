@@ -9,6 +9,7 @@ from src.domain.entities.explanation import (
     FaithfulnessResult,
 )
 from src.domain.entities.query import Citation, QueryResponse, RetrievedChunk
+from tests.conftest import submit_query
 
 
 @pytest.fixture
@@ -149,9 +150,13 @@ class TestFormatQueryAsMarkdown:
 
 
 @pytest.mark.asyncio
-async def test_export_query_not_found(client):
-    """Test export returns 404 for unknown query_id."""
-    response = await client.get("/query/nonexistent-id/export")
+async def test_export_query_not_found(authenticated_client):
+    """Test export returns 404 for unknown query_id.
+
+    Uses an admin session: anonymous callers are rejected before the lookup, so
+    that path is covered in test_query_access.py instead.
+    """
+    response = await authenticated_client.get("/query/nonexistent-id/export")
     assert response.status_code == 404
 
 
@@ -159,15 +164,10 @@ async def test_export_query_not_found(client):
 async def test_export_returns_markdown_content_type(client):
     """Test export returns correct content type header."""
     # First submit a query to create a stored response
-    query_response = await client.post(
-        "/query",
-        json={"question": "What is the Transformer architecture?"},
-    )
-    assert query_response.status_code == 200
-    query_id = query_response.json()["query_id"]
+    query_id, headers = await submit_query(client, "What is the Transformer architecture?")
 
     # Now export it
-    export_response = await client.get(f"/query/{query_id}/export")
+    export_response = await client.get(f"/query/{query_id}/export", headers=headers)
     assert export_response.status_code == 200
     assert "text/markdown" in export_response.headers["content-type"]
 
@@ -175,14 +175,9 @@ async def test_export_returns_markdown_content_type(client):
 @pytest.mark.asyncio
 async def test_export_has_attachment_header(client):
     """Test export has Content-Disposition attachment header."""
-    query_response = await client.post(
-        "/query",
-        json={"question": "What is attention?"},
-    )
-    assert query_response.status_code == 200
-    query_id = query_response.json()["query_id"]
+    query_id, headers = await submit_query(client, "What is attention?")
 
-    export_response = await client.get(f"/query/{query_id}/export")
+    export_response = await client.get(f"/query/{query_id}/export", headers=headers)
     assert export_response.status_code == 200
     assert "attachment" in export_response.headers["content-disposition"]
     assert f"query-{query_id[:8]}.md" in export_response.headers["content-disposition"]
@@ -192,14 +187,9 @@ async def test_export_has_attachment_header(client):
 async def test_export_contains_query_content(client):
     """Test exported markdown contains the query content."""
     question = "What is the purpose of multi-head attention?"
-    query_response = await client.post(
-        "/query",
-        json={"question": question},
-    )
-    assert query_response.status_code == 200
-    query_id = query_response.json()["query_id"]
+    query_id, headers = await submit_query(client, question)
 
-    export_response = await client.get(f"/query/{query_id}/export")
+    export_response = await client.get(f"/query/{query_id}/export", headers=headers)
     assert export_response.status_code == 200
 
     content = export_response.text

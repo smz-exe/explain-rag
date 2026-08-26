@@ -33,6 +33,8 @@ export * from './paperSearchResult';
 export * from './papersResponse';
 export * from './paperWithCoordinates';
 export * from './queriesResponse';
+export * from './queryCreatedResponse';
+export * from './queryCreatedResponseFaithfulnessStatus';
 export * from './queryRequest';
 export * from './queryResponse';
 export * from './queryResponseFaithfulnessStatus';

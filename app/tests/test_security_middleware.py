@@ -71,7 +71,7 @@ class TestSecurityHeaders:
     async def test_headers_present_on_error_responses(self, client):
         response = await client.get("/query/nonexistent-id/explanation")
 
-        assert response.status_code == 404
+        assert response.status_code == 401
         assert response.headers["x-content-type-options"] == "nosniff"
 
 

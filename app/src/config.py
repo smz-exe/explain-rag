@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password_hash: SecretStr = SecretStr("")  # bcrypt hash
 
+    # Capability token granting read access to a single stored query.
+    # Short-lived: it only has to outlive the session that asked the question.
+    query_token_expire_minutes: int = 120
+
     @property
     def secure_cookies(self) -> bool:
         """Use secure cookies in production (requires HTTPS)."""

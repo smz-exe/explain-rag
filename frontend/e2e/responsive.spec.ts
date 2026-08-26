@@ -27,6 +27,9 @@ const mockClustersResponse = {
 
 const mockQueryResponse = {
   query_id: "test",
+  // Reading a stored query needs the capability token issued alongside it
+  share_token: "test-share-token",
+  faithfulness_status: "completed",
   question: "test",
   answer: "test answer with citation [1]",
   citations: [{ claim: "test", chunk_ids: ["chunk-1"], confidence: 0.9 }],

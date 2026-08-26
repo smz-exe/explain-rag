@@ -9,12 +9,12 @@ import {
 } from "@/components";
 import { visualization } from "@/lib/design-tokens";
 import type { QueryCoords, QueryInputHandle } from "@/components";
-import type { QueryResponse } from "@/api/model";
+import type { QueryCreatedResponse } from "@/api/model";
 import { useQueryQueryPost } from "@/api/queries/query/query";
 import { useEmbeddingSpace } from "@/hooks/useEmbeddingSpace";
 
 export default function Home() {
-  const [response, setResponse] = useState<QueryResponse | null>(null);
+  const [response, setResponse] = useState<QueryCreatedResponse | null>(null);
   const [highlightedChunkId, setHighlightedChunkId] = useState<string>();
   const [prefilledQuestion, setPrefilledQuestion] = useState<string>();
   const [selectedPaperId, setSelectedPaperId] = useState<string>();

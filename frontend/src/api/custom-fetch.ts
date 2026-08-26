@@ -7,11 +7,52 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export const getApiBaseUrl = () => BASE_URL;
 
 /**
- * Get the URL for downloading a query export as Markdown.
- * Used for file downloads that need to open in a new tab.
+ * Download a query export as a Markdown file.
+ *
+ * Reading a stored query requires the capability token issued with it. The
+ * token is sent as an Authorization header rather than a query parameter, so
+ * it never lands in browser history, referrers, or server access logs — which
+ * rules out `window.open` and means the file is fetched and saved from a blob.
  */
-export const getQueryExportUrl = (queryId: string) =>
-  `${BASE_URL}/query/${queryId}/export`;
+export const downloadQueryExport = async (
+  queryId: string,
+  shareToken: string
+): Promise<void> => {
+  let response: Response;
+
+  try {
+    response = await fetch(`${BASE_URL}/query/${queryId}/export`, {
+      credentials: "include",
+      headers: { Authorization: `Bearer ${shareToken}` },
+    });
+  } catch {
+    throw new Error(
+      "Failed to connect to server. Please check that the backend is running."
+    );
+  }
+
+  if (!response.ok) {
+    throw new APIError(
+      response.status === 401 || response.status === 403
+        ? "This export link has expired. Run the query again to download it."
+        : `Export failed with status ${response.status}`,
+      response.status
+    );
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `query-${queryId.slice(0, 8)}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+};
 
 export class APIError extends Error {
   status: number;

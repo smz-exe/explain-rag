@@ -134,7 +134,10 @@ class TestDeferredVerificationRoutes:
         assert body["faithfulness"] is None
         assert body["answer"]
 
-        poll = await deferred_client.get(f"/query/{body['query_id']}/faithfulness")
+        poll = await deferred_client.get(
+            f"/query/{body['query_id']}/faithfulness",
+            headers={"Authorization": f"Bearer {body['share_token']}"},
+        )
         assert poll.status_code == 200
         poll_body = poll.json()
         assert poll_body["status"] == "completed"
@@ -142,5 +145,11 @@ class TestDeferredVerificationRoutes:
         assert poll_body["faithfulness_time_ms"] is not None
 
     async def test_poll_unknown_query_returns_404(self, deferred_client):
+        """An admin session reaches the lookup; anonymous polls are rejected earlier."""
+        login = await deferred_client.post(
+            "/auth/login", json={"username": "admin", "password": "testpassword"}
+        )
+        assert login.status_code == 200
+
         poll = await deferred_client.get("/query/no-such-id/faithfulness")
         assert poll.status_code == 404

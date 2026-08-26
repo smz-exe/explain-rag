@@ -6,6 +6,11 @@ from limits.aio.strategies import MovingWindowRateLimiter
 from pydantic import BaseModel, Field
 from slowapi.util import get_remote_address
 
+from src.adapters.inbound.http.auth import require_admin
+from src.adapters.inbound.http.query_access import (
+    create_query_access_dependency,
+    issue_query_token,
+)
 from src.application.query_service import QueryService
 from src.config import Settings
 from src.domain.entities.explanation import FaithfulnessResult
@@ -74,6 +79,18 @@ class QueriesResponse(BaseModel):
     total: int
 
 
+class QueryCreatedResponse(QueryResponse):
+    """A fresh query result plus the capability to read it again.
+
+    share_token is a transport concern, so it lives here rather than on the
+    QueryResponse entity: the domain does not know about HTTP authorization.
+    """
+
+    share_token: str = Field(
+        description="Short-lived token authorizing reads of this query's explanation and export"
+    )
+
+
 def create_router(query_service: QueryService, settings: Settings) -> APIRouter:
     """Create the query router.
 
@@ -89,11 +106,14 @@ def create_router(query_service: QueryService, settings: Settings) -> APIRouter:
         The /query POST endpoint is rate limited (default: 10/minute per IP).
     """
     router = APIRouter(prefix="/query", tags=["query"])
+    require_query_access = create_query_access_dependency(settings)
 
-    @router.post("", response_model=QueryResponse, dependencies=[Depends(rate_limit_dependency)])
+    @router.post(
+        "", response_model=QueryCreatedResponse, dependencies=[Depends(rate_limit_dependency)]
+    )
     async def query(
         query_request: QueryRequest, background_tasks: BackgroundTasks
-    ) -> QueryResponse:
+    ) -> QueryCreatedResponse:
         """Submit a question and receive an explained answer.
 
         The response includes:
@@ -111,9 +131,16 @@ def create_router(query_service: QueryService, settings: Settings) -> APIRouter:
         )
         if response.faithfulness_status == "pending":
             background_tasks.add_task(query_service.complete_verification, response)
-        return response
+        return QueryCreatedResponse(
+            **response.model_dump(),
+            share_token=issue_query_token(response.query_id, settings),
+        )
 
-    @router.get("/{query_id}/faithfulness", response_model=FaithfulnessStatusResponse)
+    @router.get(
+        "/{query_id}/faithfulness",
+        response_model=FaithfulnessStatusResponse,
+        dependencies=[Depends(require_query_access)],
+    )
     async def get_faithfulness(query_id: str) -> FaithfulnessStatusResponse:
         """Poll the faithfulness verification result for a query.
 
@@ -134,7 +161,11 @@ def create_router(query_service: QueryService, settings: Settings) -> APIRouter:
             faithfulness_time_ms=stored.trace.faithfulness_time_ms,
         )
 
-    @router.get("/{query_id}/explanation", response_model=QueryResponse)
+    @router.get(
+        "/{query_id}/explanation",
+        response_model=QueryResponse,
+        dependencies=[Depends(require_query_access)],
+    )
     async def get_explanation(query_id: str) -> QueryResponse:
         """Retrieve the full explanation for a previous query.
 
@@ -155,7 +186,11 @@ def create_router(query_service: QueryService, settings: Settings) -> APIRouter:
                 detail=f"Query not found: {query_id}",
             ) from None
 
-    @router.get("/list", response_model=QueriesResponse)
+    @router.get(
+        "/list",
+        response_model=QueriesResponse,
+        dependencies=[Depends(require_admin)],
+    )
     async def list_queries(
         limit: int = Query(default=20, ge=1, le=100, description="Max number of queries to return"),
     ) -> QueriesResponse:
@@ -178,7 +213,7 @@ def create_router(query_service: QueryService, settings: Settings) -> APIRouter:
             total=len(queries),
         )
 
-    @router.get("/{query_id}/export")
+    @router.get("/{query_id}/export", dependencies=[Depends(require_query_access)])
     async def export_query(query_id: str) -> Response:
         """Export a query as a Markdown file.
 

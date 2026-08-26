@@ -15,12 +15,12 @@ import {
   TimingSkeleton,
 } from "@/components";
 import type { QueryInputHandle } from "@/components/QueryInput";
-import type { QueryResponse } from "@/api/model";
+import type { QueryCreatedResponse } from "@/api/model";
 import { useGetFaithfulnessQueryQueryIdFaithfulnessGet } from "@/api/queries/query/query";
 
 interface QueryPanelProps {
-  /** Current query response */
-  response: QueryResponse | null;
+  /** Current query response, including the token authorizing reads of it */
+  response: QueryCreatedResponse | null;
   /** Whether a query is in progress */
   isLoading: boolean;
   /** Error from query mutation */
@@ -61,19 +61,24 @@ export const QueryPanel = forwardRef<QueryInputHandle, QueryPanelProps>(
     },
     ref
   ) {
-    // Verification is deferred server-side: poll until it completes
+    // Verification is deferred server-side: poll until it completes.
+    // Reading the report needs the capability token issued with the query.
+    const shareToken = response?.share_token;
     const verificationPending = response?.faithfulness_status === "pending";
     const faithfulnessPoll = useGetFaithfulnessQueryQueryIdFaithfulnessGet(
       response?.query_id ?? "",
       {
         query: {
-          enabled: !!response && verificationPending,
+          enabled: !!response && !!shareToken && verificationPending,
           refetchInterval: (query) => {
             const data = query.state.data;
             const done = data?.status === 200 && data.data.status !== "pending";
             return done ? false : 2000;
           },
         },
+        request: shareToken
+          ? { headers: { Authorization: `Bearer ${shareToken}` } }
+          : undefined,
       }
     );
     const polled =
@@ -119,6 +124,7 @@ export const QueryPanel = forwardRef<QueryInputHandle, QueryPanelProps>(
             <section>
               <AnswerDisplay
                 queryId={response.query_id}
+                shareToken={response.share_token}
                 question={response.question}
                 answer={response.answer}
                 citations={response.citations}
