@@ -11,6 +11,7 @@ import { Loader2, Plus, Search } from "lucide-react";
 import { useIngestPapersIngestPost } from "@/api/queries/ingestion/ingestion";
 import { searchPapersPapersSearchGet } from "@/api/queries/papers/papers";
 import { useQueryClient } from "@tanstack/react-query";
+import { APIError } from "@/api/custom-fetch";
 
 interface PaperSearchResult {
   arxiv_id: string;
@@ -78,7 +79,9 @@ export function IngestForm() {
         setSearchError("Search failed. Please try again.");
       }
     } catch (err) {
-      if (err instanceof Error && err.message.includes("401")) {
+      // The thrown APIError carries the status; its message is the backend's
+      // detail string, which never contains "401".
+      if (err instanceof APIError && err.status === 401) {
         setSearchError("Authentication required. Please log in again.");
       } else {
         setSearchError("Failed to search arXiv. Please try again.");
@@ -203,6 +206,7 @@ export function IngestForm() {
                 />
                 <Button
                   type="button"
+                  aria-label="Search arXiv"
                   onClick={handleSearch}
                   disabled={isSearching || searchQuery.length < 2}
                 >

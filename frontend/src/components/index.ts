@@ -6,6 +6,7 @@ export { FaithfulnessReport } from "./FaithfulnessReport";
 export { TimingTrace } from "./TimingTrace";
 export { ErrorDisplay } from "./ErrorDisplay";
 export { ErrorBoundary } from "./ErrorBoundary";
+export { ErrorFallback } from "./ErrorFallback";
 export {
   AnswerSkeleton,
   ChunksSkeleton,
